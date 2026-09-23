@@ -62,11 +62,6 @@
     "experiments": {
       "typedRoutes": true,
       "tsconfigPaths": true
-    },
-    "extra": {
-      "eas": {
-        "projectId": "REPLACE_AFTER_EAS_INIT"
-      }
     }
   }
 }
