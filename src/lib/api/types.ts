@@ -204,6 +204,7 @@ export type DeliveryStop = {
   note: string | null;
   state: StopState;
   phone: string | null;
+  rowVersion: number;
 };
 
 export type DeliveryRoute = {

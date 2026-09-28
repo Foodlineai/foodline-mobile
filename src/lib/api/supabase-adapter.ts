@@ -180,6 +180,7 @@ function toStop(r: Row): DeliveryStop {
     note: (r.note as string | null) ?? (r.instructions as string | null) ?? null,
     state: (r.state as DeliveryStop['state']) ?? (r.status as DeliveryStop['state']) ?? 'pending',
     phone: (r.phone as string | null) ?? null,
+    rowVersion: num(r.row_version ?? r.stop_row_version, 1),
   };
 }
 
@@ -393,6 +394,25 @@ export const supabaseApi: FoodlineApi = {
           })
         ),
       };
+    },
+    async recordProofOfDelivery(companyId, input) {
+      // `p_proof` is opaque JSON — the key names below are unconfirmed against the
+      // ERP's own RPC body (see contracts/design.md: "confirm with Kartikeya, then
+      // tighten"). If this errors with an unexpected-shape message from Postgres,
+      // that is the signal the keys need correcting, not a reason to drop the
+      // expected row version — a dropped connection mid-submit must never record
+      // a delivery twice or overwrite a newer stop state.
+      await call(companyId, 'record_current_proof_of_delivery_exact', {
+        p_command_key: input.idempotencyKey,
+        p_proof: {
+          stop_id: input.stopId,
+          expected_row_version: input.stopRowVersion,
+          recipient_name: input.recipientName,
+          signature_captured: input.signatureCaptured,
+          photo_captured: input.photoCaptured,
+          client_occurred_at: new Date().toISOString(),
+        },
+      });
     },
   },
 

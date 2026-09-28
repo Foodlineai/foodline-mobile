@@ -55,6 +55,18 @@ export interface FoodlineApi {
     today(companyId: UUID): Promise<DeliveryRoute | null>;
     /** `get_current_delivery_stop_detail` */
     stop(companyId: UUID, stopId: UUID): Promise<StopDetail | null>;
+    /** `record_current_proof_of_delivery_exact` — idempotent, optimistic-concurrency guarded. */
+    recordProofOfDelivery(
+      companyId: UUID,
+      input: {
+        stopId: UUID;
+        stopRowVersion: number;
+        recipientName: string | null;
+        signatureCaptured: boolean;
+        photoCaptured: boolean;
+        idempotencyKey: string;
+      }
+    ): Promise<void>;
   };
   receiving: {
     /** `list_receiving_location_warehouses` — warehouses this actor can receive into. */

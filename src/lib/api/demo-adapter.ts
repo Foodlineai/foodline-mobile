@@ -148,10 +148,10 @@ const ROUTE: DeliveryRoute = {
   stopsTotal: 8,
   stopsComplete: 2,
   stops: [
-    { id: 's1', sequence: 1, customerName: 'Morning Bakery', address: '12 Auburn Ave, Atlanta', windowLabel: '7:00-7:30 AM', note: null, state: 'complete', phone: '+1 404 555 0111' },
-    { id: 's2', sequence: 2, customerName: 'Hillside Deli', address: '88 Edgewood Ave, Atlanta', windowLabel: '8:15-8:45 AM', note: null, state: 'complete', phone: '+1 404 555 0112' },
-    { id: 's3', sequence: 3, customerName: 'Cedar Grove Catering', address: '180 Peachtree St, Atlanta', windowLabel: '10:00-10:30 AM', note: 'Use rear loading entrance', state: 'arrived', phone: '+1 404 555 0113' },
-    { id: 's4', sequence: 4, customerName: 'Riverside Market', address: '420 Marietta St, Atlanta', windowLabel: '11:00-11:30 AM', note: null, state: 'pending', phone: '+1 404 555 0114' },
+    { id: 's1', sequence: 1, customerName: 'Morning Bakery', address: '12 Auburn Ave, Atlanta', windowLabel: '7:00-7:30 AM', note: null, state: 'complete', phone: '+1 404 555 0111', rowVersion: 1 },
+    { id: 's2', sequence: 2, customerName: 'Hillside Deli', address: '88 Edgewood Ave, Atlanta', windowLabel: '8:15-8:45 AM', note: null, state: 'complete', phone: '+1 404 555 0112', rowVersion: 1 },
+    { id: 's3', sequence: 3, customerName: 'Cedar Grove Catering', address: '180 Peachtree St, Atlanta', windowLabel: '10:00-10:30 AM', note: 'Use rear loading entrance', state: 'arrived', phone: '+1 404 555 0113', rowVersion: 1 },
+    { id: 's4', sequence: 4, customerName: 'Riverside Market', address: '420 Marietta St, Atlanta', windowLabel: '11:00-11:30 AM', note: null, state: 'pending', phone: '+1 404 555 0114', rowVersion: 1 },
   ],
 };
 
@@ -165,6 +165,7 @@ const STOP_LINES: Record<string, StopDetail['lines']> = {
 
 const wait = (ms = 180) => new Promise((r) => setTimeout(r, ms));
 let signedIn = true;
+const usedIdempotencyKeys = new Set<string>();
 
 export const demoApi: FoodlineApi = {
   session: {
@@ -236,6 +237,21 @@ export const demoApi: FoodlineApi = {
       const stop = ROUTE.stops.find((s2) => s2.id === stopId);
       if (!stop) return null;
       return { stop, lines: STOP_LINES[stopId] ?? [] };
+    },
+    async recordProofOfDelivery(_companyId, input) {
+      await wait(220);
+      if (usedIdempotencyKeys.has(input.idempotencyKey)) return; // already recorded — same discipline as a live retry
+      const stop = ROUTE.stops.find((s2) => s2.id === input.stopId);
+      if (!stop) throw new Error('Stop not found');
+      if (stop.rowVersion !== input.stopRowVersion) {
+        throw new Error('This stop changed since you loaded it. Reload and try again.');
+      }
+      usedIdempotencyKeys.add(input.idempotencyKey);
+      stop.rowVersion += 1;
+      if (stop.state !== 'complete') {
+        stop.state = 'complete';
+        ROUTE.stopsComplete += 1;
+      }
     },
   },
 

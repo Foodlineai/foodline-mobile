@@ -1,5 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
+import * as Crypto from 'expo-crypto';
+import * as Haptics from 'expo-haptics';
 import React, { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,23 +26,50 @@ import { api } from '@/lib/api';
 /**
  * Mockup 05, right phone — one stop: what is on the truck, then proof of delivery.
  *
- * TODO(wiring): the proof-of-delivery fields collect locally. Submitting goes to
- * `record_current_proof_of_delivery_exact`, which takes a command key and the
- * stop's row version — wire it with the same idempotency discipline as receiving.
+ * Submitting goes to `record_current_proof_of_delivery_exact` with a command key
+ * (idempotency) and the stop's row version (optimistic concurrency), the same
+ * discipline as receiving — a dropped connection mid-submit must never record a
+ * delivery twice or overwrite a newer stop state.
  */
 export default function StopDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { company } = useAuth();
   const companyId = useCompanyId();
+  const queryClient = useQueryClient();
 
   const [recipient, setRecipient] = useState<string | null>(null);
   const [signed, setSigned] = useState(false);
   const [photo, setPhoto] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
   const detail = useQuery({
     queryKey: ['stop', companyId, id],
     queryFn: () => api.routes.stop(companyId, id!),
     enabled: Boolean(id),
+  });
+
+  const complete = useMutation({
+    mutationFn: async () => {
+      if (!detail.data) throw new Error('Stop not loaded');
+      await api.routes.recordProofOfDelivery(companyId, {
+        stopId: detail.data.stop.id,
+        stopRowVersion: detail.data.stop.rowVersion,
+        recipientName: recipient,
+        signatureCaptured: signed,
+        photoCaptured: photo,
+        idempotencyKey: Crypto.randomUUID(),
+      });
+    },
+    onSuccess: () => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      void queryClient.invalidateQueries({ queryKey: ['stop', companyId, id] });
+      void queryClient.invalidateQueries({ queryKey: ['routes'] });
+      router.back();
+    },
+    onError: (e: Error) => {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setMessage(e.message);
+    },
   });
 
   return (
@@ -131,10 +160,12 @@ export default function StopDetail() {
 
             <View className="gap-2">
               <GroupLabel label="Finish" />
+              {message ? <Text className="text-sm text-danger">{message}</Text> : null}
               <Button
-                label="Review delivery"
-                disabled={!recipient && !signed && !photo}
-                onPress={() => router.back()}
+                label="Complete delivery"
+                disabled={(!recipient && !signed && !photo) || complete.isPending}
+                loading={complete.isPending}
+                onPress={() => complete.mutate()}
               />
               <Text className="text-center text-xs text-ink-muted">
                 Review quantities before completing this stop
