@@ -1,3 +1,14 @@
+# foodline-mobile — agent rules
+
+**Before touching anything, read the operating brief** in the Foodline AI project:
+`claude/00-agent-handoff-operating-brief.md`. It holds the lane assignments, the three-repo
+map, the backend contract and the live blockers. This file covers what is specific to this repo.
+
+**Your lane is B — mobile product.** Do not touch `Mehul192001/foodline-android`; it is a
+separate Kotlin demo app that is frozen. See §2 and §3 of the brief.
+
+---
+
 This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.
 
 ## Expo has changed — do not trust your training data
