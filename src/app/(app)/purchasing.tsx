@@ -14,7 +14,6 @@ import {
   ListRow,
   Loading,
   MiniStat,
-  RowAction,
   Screen,
   SeeAllHeader,
   StatusPill,
@@ -82,13 +81,15 @@ export default function Purchasing() {
                       key={po.id}
                       icon="file-text"
                       title={`${po.number} · ${po.vendorName}`}
-                      subtitle={[
-                        po.total === null ? null : `$${po.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
-                        po.expectedAt ? `Due ${po.expectedAt}` : null,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                      trailing={<RowAction label="Review PO" onPress={() => router.push('/tools/purchasing')} />}
+                      subtitle={po.expectedAt ? `Due ${po.expectedAt}` : undefined}
+                      trailing={
+                        po.total === null ? undefined : (
+                          <Text className="text-base font-bold text-ink">
+                            ${po.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                          </Text>
+                        )
+                      }
+                      onPress={() => router.push('/tools/purchasing')}
                     />
                   ))}
                 </Group>

@@ -7,7 +7,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader, initialsFrom } from '@/components/app-header';
 import {
   Button,
-  Card,
   EmptyState,
   ErrorState,
   Group,
@@ -28,7 +27,15 @@ const STATUS_LABEL: Record<Item['status'], string> = {
   over: 'Overstock',
 };
 
-/** Mockup 04 — Inventory Employee: stock work first, browsing second. */
+/**
+ * Mockup 04 / prototype `Items.html` (screen 09) — stock work first, browsing
+ * second. Retoned to a compact list per the prototype, EXCEPT the pack-size
+ * column and Case/Catch-weight tag it draws: `contracts/screen-rpc-map.md`
+ * itself marks those fields unconfirmed against the live payload, and `Item`
+ * doesn't carry them. Parsing pack size out of `item.name` would be a guess
+ * dressed up as a feature — left as the on-hand/status line instead, same
+ * data as before, until the RPC shape is confirmed.
+ */
 export default function Inventory() {
   const { company } = useAuth();
   const companyId = useCompanyId();
@@ -90,11 +97,11 @@ export default function Inventory() {
             ) : items.data.length === 0 ? (
               <EmptyState title="No items match" hint="Try a different search or clear the filter." />
             ) : (
-              <View className="gap-3">
+              <Group>
                 {items.data.map((item) => (
-                  <ItemCard key={item.id} item={item} />
+                  <ItemRow key={item.id} item={item} />
                 ))}
-              </View>
+              </Group>
             )}
           </View>
 
@@ -112,37 +119,22 @@ export default function Inventory() {
   );
 }
 
-function ItemCard({ item }: { item: Item }) {
+/** One line per item, prototype-density: name + sku/vendor, on-hand + status
+ * trailing. Tapping opens the fuller detail (on hand/on order/par/days cover)
+ * rather than showing all four inline — that's what made the old card busy. */
+function ItemRow({ item }: { item: Item }) {
   return (
-    <Card className="p-4">
-      <View className="flex-row items-start justify-between gap-3">
-        <View className="flex-1 gap-0.5">
-          <Text className="text-xs font-medium text-ink-muted">{item.sku}</Text>
-          <Text className="text-base font-semibold text-ink" numberOfLines={2}>
-            {item.name}
+    <ListRow
+      title={item.name}
+      subtitle={[item.sku, item.primaryVendorName].filter(Boolean).join(' · ')}
+      trailing={
+        <View className="items-end gap-1">
+          <Text className="text-base font-bold text-ink">
+            {item.onHand} {item.uom}
           </Text>
-          {item.primaryVendorName ? (
-            <Text className="text-xs text-ink-muted">{item.primaryVendorName}</Text>
-          ) : null}
+          <StatusPill status={item.status} label={STATUS_LABEL[item.status]} />
         </View>
-        <StatusPill status={item.status} label={STATUS_LABEL[item.status]} />
-      </View>
-
-      <View className="mt-3 flex-row gap-6">
-        <Metric label="On hand" value={`${item.onHand} ${item.uom}`} />
-        <Metric label="On order" value={String(item.onOrder)} />
-        <Metric label="Par" value={item.parLevel === null ? '—' : String(item.parLevel)} />
-        <Metric label="Days cover" value={item.daysCover === null ? '—' : item.daysCover.toFixed(1)} />
-      </View>
-    </Card>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <View>
-      <Text className="text-[10px] font-medium uppercase text-ink-muted">{label}</Text>
-      <Text className="text-sm font-semibold text-ink">{value}</Text>
-    </View>
+      }
+    />
   );
 }
