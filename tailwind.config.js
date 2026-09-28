@@ -13,6 +13,11 @@ module.exports = {
           pressed: '#1D47E5',
           tint: '#EAF1FD',
           border: '#D6E2FB',
+          // Gradient top stop for the 3D button treatment (design.md §2).
+          // From design/prototype/Main.html's own .btn3 rule (#4C7BEA); the
+          // gradient's bottom stop there (#2C57D4) is close enough to the
+          // existing `brand.pressed` that it doesn't need its own token.
+          light: '#4C7BEA',
         },
         ink: {
           DEFAULT: '#0B1020',
