@@ -21,7 +21,6 @@ import {
 import { useAuth, useCompanyId } from '@/features/auth/auth-context';
 import { api } from '@/lib/api';
 
-const TILE_ICONS: IconName[] = ['file-text', 'truck'];
 const WORKSPACE_ICONS: Record<string, IconName> = {
   'Sales & Customers': 'file-text',
   Purchasing: 'shopping-cart',
@@ -64,18 +63,19 @@ export default function Home() {
                 {greeting()}
                 {home.data.greetingName ? `, ${home.data.greetingName}` : ''}
               </Text>
-              <Text className="text-base text-ink-muted">Everything that needs your attention</Text>
+              <Text className="text-base text-ink-muted">
+                {home.data.needsYou.length > 0
+                  ? `${home.data.needsYou.length} thing${home.data.needsYou.length === 1 ? '' : 's'} ${
+                      home.data.needsYou.length === 1 ? 'needs' : 'need'
+                    } your attention`
+                  : "You're all caught up"}
+              </Text>
             </View>
 
             {home.data.tiles.length > 0 ? (
               <View className="flex-row gap-3">
-                {home.data.tiles.map((tile, i) => (
-                  <StatTile
-                    key={tile.key}
-                    icon={TILE_ICONS[i] ?? 'activity'}
-                    label={tile.label}
-                    value={tile.value}
-                  />
+                {home.data.tiles.map((tile) => (
+                  <StatTile key={tile.key} label={tile.label} value={tile.value} />
                 ))}
               </View>
             ) : null}
@@ -86,15 +86,19 @@ export default function Home() {
                 <EmptyState title="Nothing waiting on you" hint="Approvals and exceptions will appear here." />
               ) : (
                 <Group>
-                  {home.data.needsYou.map((item) => (
-                    <ListRow
-                      key={item.key}
-                      icon={WORKSPACE_ICONS[item.workspace] ?? 'circle'}
-                      title={item.title}
-                      subtitle={item.workspace}
-                      onPress={item.route ? () => router.push(item.route as never) : undefined}
-                    />
-                  ))}
+                  {home.data.needsYou.map((item) => {
+                    const icon = WORKSPACE_ICONS[item.workspace] ?? 'circle';
+                    return (
+                      <ListRow
+                        key={item.key}
+                        icon={icon}
+                        tone={icon === 'alert-triangle' ? 'danger' : 'default'}
+                        title={item.title}
+                        subtitle={item.workspace}
+                        onPress={item.route ? () => router.push(item.route as never) : undefined}
+                      />
+                    );
+                  })}
                 </Group>
               )}
             </View>

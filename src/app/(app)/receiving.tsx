@@ -224,7 +224,7 @@ export default function Receiving() {
           </Text>
         </Card>
         <NoticeCard
-          tone="ai"
+          tone="tip"
           title="Why a session"
           body="Scans are recorded against a claimed session, so a lost connection never loses a count and nothing is received twice."
         />

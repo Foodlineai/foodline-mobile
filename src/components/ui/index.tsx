@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
 export const COLORS = {
   brand: '#3B65ED',
@@ -81,6 +81,13 @@ export function GroupLabel({ label }: { label: string }) {
 }
 
 /** A tappable row: icon, title, optional subtitle, chevron. The workhorse of this app. */
+const LIST_ROW_BADGE: Record<'default' | 'warn' | 'ai' | 'danger', { bg: string; color: string }> = {
+  default: { bg: 'bg-brand-tint', color: COLORS.brand },
+  warn: { bg: 'bg-warn-tint', color: COLORS.warn },
+  ai: { bg: 'bg-ai-tint', color: COLORS.ai },
+  danger: { bg: 'bg-danger-tint', color: COLORS.danger },
+};
+
 export function ListRow({
   icon,
   title,
@@ -96,11 +103,12 @@ export function ListRow({
   subtitle?: string;
   trailing?: React.ReactNode;
   onPress?: () => void;
-  tone?: 'default' | 'warn';
+  tone?: 'default' | 'warn' | 'ai' | 'danger';
   first?: boolean;
   last?: boolean;
 }) {
   const radius = `${first ? 'rounded-t-2xl' : ''} ${last ? 'rounded-b-2xl' : ''}`;
+  const badge = LIST_ROW_BADGE[tone];
   return (
     <Pressable
       accessibilityRole={onPress ? 'button' : undefined}
@@ -108,7 +116,9 @@ export function ListRow({
       className={`flex-row items-center gap-3 border-surface-line bg-surface-card px-4 py-3.5 ${last ? '' : 'border-b'} ${radius} active:bg-brand-tint/40`}
     >
       {icon ? (
-        <Feather name={icon} size={20} color={tone === 'warn' ? COLORS.warn : COLORS.ink} />
+        <View className={`h-9 w-9 items-center justify-center rounded-xl ${badge.bg}`}>
+          <Feather name={icon} size={18} color={badge.color} />
+        </View>
       ) : null}
       <View className="flex-1">
         <Text className="text-base font-semibold text-ink" numberOfLines={1}>
@@ -139,19 +149,21 @@ export function Group({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function StatTile({ icon, label, value }: { icon: IconName; label: string; value: string }) {
+/** A flat metric tile — Home's "Open orders 39" pair (Main.html: no icon, no
+ * tint, just the number doing the work). */
+export function StatTile({ label, value, onPress }: { label: string; value: string; onPress?: () => void }) {
+  const Wrapper = onPress ? Pressable : View;
   return (
-    <Card className="min-w-[46%] flex-1 flex-row items-center gap-3 p-4">
-      <View className="h-11 w-11 items-center justify-center rounded-full bg-brand-tint">
-        <Feather name={icon} size={20} color={COLORS.brand} />
-      </View>
-      <View className="flex-1">
-        <Text className="text-sm text-ink-muted" numberOfLines={1}>
-          {label}
-        </Text>
-        <Text className="text-2xl font-bold text-ink">{value}</Text>
-      </View>
-    </Card>
+    <Wrapper
+      accessibilityRole={onPress ? 'button' : undefined}
+      onPress={onPress}
+      className="min-w-[46%] flex-1 gap-0.5 rounded-2xl border border-surface-line bg-surface-card p-3.5"
+    >
+      <Text className="text-xs text-ink-muted" numberOfLines={1}>
+        {label}
+      </Text>
+      <Text className="text-2xl font-bold text-ink">{value}</Text>
+    </Wrapper>
   );
 }
 
@@ -269,31 +281,106 @@ export function NoticeCard({
   actionLabel,
   onAction,
 }: {
-  tone: 'ai' | 'warn';
+  /**
+   * `ai` is the machine-authored insight card (contracts/design.md §1: "`ai`
+   * indigo means machine-authored, never an ordinary action") — use it only
+   * for something the AI actually generated. `tip` is the old light-tint
+   * look, for an ordinary explanatory note. `warn` is unchanged.
+   */
+  tone: 'ai' | 'warn' | 'tip';
   title: string;
   body: string;
   actionLabel?: string;
   onAction?: () => void;
 }) {
-  const ai = tone === 'ai';
+  if (tone === 'ai') return <AiNoticeCard title={title} body={body} actionLabel={actionLabel} onAction={onAction} />;
+
+  const warn = tone === 'warn';
   return (
     <View
-      className={`gap-1.5 rounded-2xl border p-4 ${ai ? 'border-brand-border bg-brand-tint' : 'border-warn-border bg-warn-tint'}`}
+      className={`gap-1.5 rounded-2xl border p-4 ${warn ? 'border-warn-border bg-warn-tint' : 'border-brand-border bg-brand-tint'}`}
     >
       <View className="flex-row items-center gap-2">
-        <Feather name={ai ? 'zap' : 'alert-triangle'} size={16} color={ai ? COLORS.brand : COLORS.warn} />
-        <Text className={`text-sm font-bold ${ai ? 'text-brand' : 'text-warn'}`}>{title}</Text>
+        <Feather name={warn ? 'alert-triangle' : 'info'} size={16} color={warn ? COLORS.warn : COLORS.brand} />
+        <Text className={`text-sm font-bold ${warn ? 'text-warn' : 'text-brand'}`}>{title}</Text>
       </View>
       <Text className="text-sm text-ink">{body}</Text>
       {actionLabel && onAction ? (
         <Pressable accessibilityRole="button" onPress={onAction} hitSlop={8} className="mt-1 flex-row items-center gap-1">
-          <Text className={`text-sm font-bold ${ai ? 'text-brand' : 'text-warn'}`}>{actionLabel}</Text>
-          <Feather name="chevron-right" size={16} color={ai ? COLORS.brand : COLORS.warn} />
+          <Text className={`text-sm font-bold ${warn ? 'text-warn' : 'text-brand'}`}>{actionLabel}</Text>
+          <Feather name="chevron-right" size={16} color={warn ? COLORS.warn : COLORS.brand} />
         </Pressable>
       ) : null}
     </View>
   );
 }
+
+/** The AI Copilot card (contracts/design.md, Main.html's `.rise` block): a solid
+ * deep-indigo gradient, never a light tint — this is what tells someone the AI
+ * wrote something, so it has to look different from every other card. */
+function AiNoticeCard({
+  title,
+  body,
+  actionLabel,
+  onAction,
+}: {
+  title: string;
+  body: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  const pulse = React.useRef(new Animated.Value(1)).current;
+  React.useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 0.35, duration: 900, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 900, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+
+  const Wrapper = onAction ? Pressable : View;
+  return (
+    <Wrapper
+      accessibilityRole={onAction ? 'button' : undefined}
+      onPress={onAction}
+      style={aiCardStyles.card}
+    >
+      <LinearGradient
+        colors={[COLORS.aiDeep, COLORS.ai]}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={aiCardStyles.gradient}
+      >
+        <View className="flex-row items-center gap-2">
+          <Animated.View style={[aiCardStyles.dot, { opacity: pulse }]} />
+          <Text className="text-[11px] font-semibold uppercase tracking-wide text-white/80">{title}</Text>
+        </View>
+        <Text className="mt-1.5 text-sm font-medium leading-5 text-white">{body}</Text>
+        {actionLabel ? (
+          <Text className="mt-2 self-start border-b border-white/55 text-[13px] font-semibold text-white">
+            {actionLabel}
+          </Text>
+        ) : null}
+      </LinearGradient>
+    </Wrapper>
+  );
+}
+
+const aiCardStyles = StyleSheet.create({
+  card: {
+    borderRadius: 14,
+    shadowColor: COLORS.ai,
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
+  },
+  gradient: { borderRadius: 14, padding: 14 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFFFFF' },
+});
 
 export function StatusPill({ status, label }: { status: string; label?: string }) {
   const tone =

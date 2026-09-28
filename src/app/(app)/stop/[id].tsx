@@ -63,7 +63,7 @@ export default function StopDetail() {
     onSuccess: () => {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       void queryClient.invalidateQueries({ queryKey: ['stop', companyId, id] });
-      void queryClient.invalidateQueries({ queryKey: ['routes'] });
+      void queryClient.invalidateQueries({ queryKey: ['route', 'today', companyId] });
       router.back();
     },
     onError: (e: Error) => {
