@@ -27,6 +27,17 @@ module.exports = {
         warn: { DEFAULT: '#B7791F', tint: '#FEF4D9', border: '#F5DFA8' },
         danger: { DEFAULT: '#D64545', tint: '#FDECEC' },
         good: { DEFAULT: '#1E8E5A', tint: '#E6F5EE' },
+        // Added for the twelve-screen system (contracts/design.md v2 in the
+        // cowork repo). Sampled from design/prototype/*.html, not hand-picked —
+        // same discipline as the tokens above.
+        ai: {
+          DEFAULT: '#4953E4',
+          deep: '#1A40DA',
+          tint: '#E7E9FD',
+          // Awaiting human approval — the approval gate's own colour.
+          pending: '#3B45DC',
+        },
+        info: { DEFAULT: '#1D4FA8', tint: '#EDF3FE' },
       },
     },
   },
