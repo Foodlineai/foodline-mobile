@@ -3,23 +3,30 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
+import { colors as tokenColors } from '@/theme/tokens';
+
+/** Raw hex, for style props that can't take a Tailwind class (shadowColor,
+ * icon `color`, LinearGradient stops). Sourced from tokens.ts — the same
+ * single source tailwind.config.js reads from — so this can't drift from the
+ * Tailwind classes below. */
 export const COLORS = {
-  brand: '#3B65ED',
-  brandPressed: '#1D47E5',
-  brandLight: '#4C7BEA',
-  brandTint: '#EAF1FD',
-  ink: '#0B1020',
-  inkMuted: '#475776',
-  inkFaint: '#8A96AF',
-  surface: '#F7FAFD',
-  card: '#FFFFFF',
-  line: '#E7EDF5',
-  warn: '#B7791F',
-  danger: '#D64545',
-  ai: '#4953E4',
-  aiDeep: '#1A40DA',
-  aiPending: '#3B45DC',
-  info: '#1D4FA8',
+  brand: tokenColors.brand.DEFAULT,
+  brandPressed: tokenColors.brand.pressed,
+  brandLight: tokenColors.brand.lift,
+  brandTint: tokenColors.brand.tint,
+  ink: tokenColors.ink.DEFAULT,
+  inkMuted: tokenColors.ink.muted,
+  inkFaint: tokenColors.ink.disabled,
+  surface: tokenColors.surface.DEFAULT,
+  card: tokenColors.surface.card,
+  line: tokenColors.hairline.DEFAULT,
+  warn: tokenColors.warn.DEFAULT,
+  danger: tokenColors.danger.DEFAULT,
+  ok: tokenColors.ok.DEFAULT,
+  ai: tokenColors.ai.DEFAULT,
+  aiDeep: tokenColors.ai.deep,
+  aiPending: tokenColors.ai.pending,
+  info: tokenColors.info.DEFAULT,
 } as const;
 
 export type IconName = React.ComponentProps<typeof Feather>['name'];
@@ -389,7 +396,7 @@ export function StatusPill({ status, label }: { status: string; label?: string }
       : status === 'low' || status === 'partial'
         ? 'bg-warn-tint text-warn'
         : status === 'ok' || status === 'received'
-          ? 'bg-good-tint text-good'
+          ? 'bg-ok-tint text-ok'
           : 'bg-brand-tint text-brand';
   return (
     <View className={`self-start rounded-full px-2.5 py-1 ${tone}`}>

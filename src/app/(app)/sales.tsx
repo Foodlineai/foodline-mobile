@@ -69,7 +69,11 @@ export default function Sales() {
                       title={`${o.number} · ${o.customerName}`}
                       subtitle={o.attention ?? undefined}
                       trailing={<StatusPill status={o.state === 'short' ? 'low' : 'open'} label={STATE_LABEL[o.state]} />}
-                      onPress={() => router.push('/tools/sales')}
+                      onPress={
+                        o.state === 'confirmed' || o.state === 'picking'
+                          ? () => router.push(`/(app)/shipment/${o.id}`)
+                          : () => router.push('/tools/sales')
+                      }
                     />
                   ))}
                 </Group>
@@ -87,7 +91,7 @@ export default function Sales() {
                       key={c.id}
                       title={c.name}
                       subtitle={c.subtitle ?? 'Open customer details'}
-                      onPress={() => router.push('/tools/sales')}
+                      onPress={() => router.push(`/(app)/customer/${c.id}`)}
                     />
                   ))}
                 </Group>

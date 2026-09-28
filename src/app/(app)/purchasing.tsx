@@ -65,7 +65,7 @@ export default function Purchasing() {
                     `${summary.data.topIssue.ordersAffected} customer orders affected`,
                     `Need ${summary.data.topIssue.neededQuantity} ${summary.data.topIssue.uom} · ${summary.data.topIssue.incomingQuantity} incoming`,
                   ]}
-                  action={{ label: 'Review purchase need', onPress: () => router.push('/tools/purchasing') }}
+                  action={{ label: 'Review purchase need', onPress: () => router.push('/(app)/routine/po-2091') }}
                 />
               </View>
             ) : null}
