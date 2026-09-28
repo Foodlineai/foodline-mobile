@@ -7,6 +7,10 @@ map, the backend contract and the live blockers. This file covers what is specif
 **Your lane is B — mobile product.** Do not touch `Mehul192001/foodline-android`; it is a
 separate Kotlin demo app that is frozen. See §2 and §3 of the brief.
 
+**Coordination lives in `~/Documents/foodline-cowork`** — read `BOARD.md` and the other
+agents' `status/*.md` before you touch anything, and write your own status file naming the
+files you claim *before* you start. Your full handoff is in `handoffs/`.
+
 ---
 
 This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.
