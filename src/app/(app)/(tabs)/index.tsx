@@ -5,6 +5,7 @@ import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader, initialsFrom } from '@/components/app-header';
+import { ARTWORK } from '@/components/artwork';
 import {
   Button,
   EmptyState,
@@ -12,6 +13,7 @@ import {
   Group,
   ListRow,
   Loading,
+  ModuleArtwork,
   NoticeCard,
   Screen,
   SectionHeader,
@@ -60,6 +62,10 @@ export default function Home() {
             refreshControl={<RefreshControl refreshing={home.isRefetching} onRefresh={() => home.refetch()} />}
           >
             {home.isRefetchError ? <StaleBanner updatedAt={home.dataUpdatedAt} /> : null}
+            <ModuleArtwork
+              source={ARTWORK.admin}
+              accessibilityLabel="Foodline loading dock with refrigerated truck and warehouse team"
+            />
             <View className="gap-1">
               <Text className="text-3xl font-bold text-ink">
                 {greeting()}
@@ -127,7 +133,7 @@ export default function Home() {
                 title="AI summary"
                 body={home.data.aiSummary.body}
                 actionLabel={home.data.aiSummary.actionLabel}
-                onAction={() => router.push('/(app)/(tabs)/more')}
+                onAction={() => router.push('/(app)/(tabs)/ai')}
               />
             ) : null}
 

@@ -5,6 +5,7 @@ import { RefreshControl, ScrollView, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader, initialsFrom } from '@/components/app-header';
+import { ARTWORK } from '@/components/artwork';
 import {
   Button,
   EmptyState,
@@ -12,6 +13,7 @@ import {
   Group,
   ListRow,
   Loading,
+  ModuleArtwork,
   NoticeCard,
   Screen as ScreenRoot,
   SeeAllHeader,
@@ -65,6 +67,10 @@ export default function Inventory() {
           refreshControl={<RefreshControl refreshing={items.isRefetching} onRefresh={() => items.refetch()} />}
         >
           {items.isRefetchError ? <StaleBanner updatedAt={items.dataUpdatedAt} /> : null}
+          <ModuleArtwork
+            source={ARTWORK.inventory}
+            accessibilityLabel="Foodline chilled inventory with produce crates and barcode scanner"
+          />
           <Text className="text-3xl font-bold text-ink">Your stock work</Text>
 
           <Button label="Scan item or location" icon="maximize" onPress={() => router.push('/receiving')} />

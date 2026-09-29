@@ -5,6 +5,7 @@ import { RefreshControl, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader, initialsFrom } from '@/components/app-header';
+import { ARTWORK } from '@/components/artwork';
 import {
   EmptyState,
   ErrorState,
@@ -55,8 +56,10 @@ export default function Sales() {
               eyebrow="Operations"
               title="Sales & Customers"
               subtitle="Customers, orders and follow-ups"
+              artwork={ARTWORK.sales}
+              artworkLabel="Foodline sales operations with delivery van and order desk"
               primary={{ label: 'New order', icon: 'plus', onPress: () => router.push('/tools/sales') }}
-              secondary={{ label: 'Ask AI', icon: 'zap', onPress: () => router.push('/(app)/(tabs)/search') }}
+              secondary={{ label: 'Ask AI', icon: 'zap', onPress: () => router.push('/(app)/(tabs)/ai') }}
             />
 
             <View className="gap-3">

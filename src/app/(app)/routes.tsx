@@ -6,6 +6,7 @@ import { Linking, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader, initialsFrom } from '@/components/app-header';
+import { ARTWORK } from '@/components/artwork';
 import {
   Button,
   Card,
@@ -15,6 +16,7 @@ import {
   GroupLabel,
   ListRow,
   Loading,
+  ModuleArtwork,
   COLORS,
   Screen,
   StaleBanner,
@@ -58,6 +60,10 @@ export default function Routes() {
             refreshControl={<RefreshControl refreshing={route.isRefetching} onRefresh={() => route.refetch()} />}
           >
             {route.isRefetchError ? <StaleBanner updatedAt={route.dataUpdatedAt} /> : null}
+            <ModuleArtwork
+              source={ARTWORK.routes}
+              accessibilityLabel="Foodline delivery route map with refrigerated truck and completed stops"
+            />
 
             <View className="gap-1">
               <Text className="text-3xl font-bold text-ink">Today&apos;s route</Text>

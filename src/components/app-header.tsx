@@ -1,8 +1,8 @@
 import { Feather } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 
+import { ARTWORK } from './artwork';
 import { Avatar, COLORS, ContextPill } from './ui';
 
 /**
@@ -29,13 +29,7 @@ export function AppHeader({
       hitSlop={8}
       className="flex-row items-center gap-2"
     >
-      <LinearGradient
-        colors={['#7C9CF0', '#4C80FB', '#1E3A8A']}
-        locations={[0, 0.45, 1]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{ height: 28, width: 28, borderRadius: 9 }}
-      />
+      <Image source={ARTWORK.nova} accessibilityLabel="Nova AI" resizeMode="contain" className="h-8 w-8" />
       <Text className="text-2xl font-bold text-ink">Foodline AI</Text>
       {onPressOrg ? <Feather name="chevron-down" size={20} color={COLORS.ink} /> : null}
     </Pressable>

@@ -1,7 +1,17 @@
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import {
+  ActivityIndicator,
+  Animated,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type ImageSourcePropType,
+  type ViewStyle,
+} from 'react-native';
 
 import { colors as tokenColors } from '@/theme/tokens';
 
@@ -462,22 +472,53 @@ export function EmptyState({ title, hint }: { title: string; hint?: string }) {
   );
 }
 
+export function ModuleArtwork({
+  source,
+  accessibilityLabel,
+}: {
+  source: ImageSourcePropType;
+  accessibilityLabel: string;
+}) {
+  return (
+    <View className="h-44 overflow-hidden rounded-2xl border border-brand-border bg-brand-tint px-2 py-1">
+      <Image
+        source={source}
+        accessibilityLabel={accessibilityLabel}
+        resizeMode="contain"
+        className="h-full w-full"
+      />
+    </View>
+  );
+}
+
 /** The tinted hero card at the top of a module screen (mockups 02, 03). */
 export function ModuleHero({
   eyebrow,
   title,
   subtitle,
+  artwork,
+  artworkLabel,
   primary,
   secondary,
 }: {
   eyebrow?: string;
   title: string;
   subtitle?: string;
+  artwork?: ImageSourcePropType;
+  artworkLabel?: string;
   primary?: { label: string; icon?: IconName; onPress: () => void };
   secondary?: { label: string; icon?: IconName; onPress: () => void };
 }) {
   return (
     <View className="gap-3 rounded-2xl border border-brand-border bg-brand-tint p-4">
+      {artwork ? (
+        <Image
+          source={artwork}
+          accessibilityLabel={artworkLabel}
+          resizeMode="contain"
+          className="h-40 w-full"
+        />
+      ) : null}
       <View className="gap-1">
         {eyebrow ? <GroupLabel label={eyebrow} /> : null}
         <Text className="text-2xl font-bold text-ink">{title}</Text>

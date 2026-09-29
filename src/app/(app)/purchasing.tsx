@@ -5,6 +5,7 @@ import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader, initialsFrom } from '@/components/app-header';
+import { ARTWORK } from '@/components/artwork';
 import {
   AlertCard,
   Button,
@@ -14,6 +15,7 @@ import {
   ListRow,
   Loading,
   MiniStat,
+  ModuleArtwork,
   Screen,
   SeeAllHeader,
   StaleBanner,
@@ -46,6 +48,10 @@ export default function Purchasing() {
             refreshControl={<RefreshControl refreshing={summary.isRefetching} onRefresh={() => summary.refetch()} />}
           >
             {summary.isRefetchError ? <StaleBanner updatedAt={summary.dataUpdatedAt} /> : null}
+            <ModuleArtwork
+              source={ARTWORK.purchasing}
+              accessibilityLabel="Foodline purchasing basket with fresh produce and approved purchase order"
+            />
             <Text className="text-3xl font-bold text-ink">Buying today</Text>
 
             <View className="flex-row gap-3">
