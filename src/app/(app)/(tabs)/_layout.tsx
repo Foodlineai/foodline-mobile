@@ -1,15 +1,17 @@
 import { Feather } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { Image } from 'react-native';
 
+import { ARTWORK } from '@/components/artwork';
 import { COLORS, type IconName } from '@/components/ui';
 
-/** The five-tab shell from the mockups: Home · My Work · Activity · Search · More. */
+/** The five-tab shell keeps Nova AI at the centre of every workflow. */
 const TABS: { name: string; title: string; icon: IconName }[] = [
   { name: 'index', title: 'Home', icon: 'home' },
   { name: 'my-work', title: 'My Work', icon: 'clipboard' },
+  { name: 'ai', title: 'AI', icon: 'zap' },
   { name: 'activity', title: 'Activity', icon: 'bell' },
-  { name: 'search', title: 'Search', icon: 'search' },
   { name: 'more', title: 'More', icon: 'more-horizontal' },
 ];
 
@@ -31,10 +33,21 @@ export default function TabsLayout() {
           name={tab.name}
           options={{
             title: tab.title,
-            tabBarIcon: ({ color, size }) => <Feather name={tab.icon} size={size ?? 22} color={color} />,
+            tabBarIcon: ({ color, size }) =>
+              tab.name === 'ai' ? (
+                <Image
+                  source={ARTWORK.nova}
+                  accessibilityLabel="Open Nova AI"
+                  resizeMode="contain"
+                  style={{ width: 54, height: 54, marginTop: -18 }}
+                />
+              ) : (
+                <Feather name={tab.icon} size={size ?? 22} color={color} />
+              ),
           }}
         />
       ))}
+      <Tabs.Screen name="search" options={{ href: null }} />
     </Tabs>
   );
 }
