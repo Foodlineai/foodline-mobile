@@ -4,34 +4,31 @@ import type { Tone } from '../../components/primitives';
 /**
  * Customer 360 adapter.
  *
- * ⚠️ TODO(wiring) — THE RPC NAME IS NOT KNOWN.
+ * `CUSTOMER_DETAIL_RPC` confirmed 29 Sep against the live ERP source
+ * (foodline-frontend, supabase/migrations/20260928120000_baseline.sql):
+ * `get_current_customer_detail(p_customer_id uuid) returns jsonb`. The ERP's
+ * own TS wrapper (`customer-master.repository.server.ts`) reads it through a
+ * schema at `customer-master-contracts.ts` — that confirms the *fields*, not
+ * necessarily the exact wire casing this RPC hands back raw (snake_case is
+ * the Postgres convention; the ERP's schema may camelCase it on the way in).
+ * `pick()` below still tries both, same discipline as before, now aimed at
+ * confirmed field names instead of guessed ones.
  *
- * `contracts/backend.md` is explicit: there is no REST API, everything is an
- * RPC, and there are ~343 of them. Four are verified for mobile
- * (`get_current_commercial_dashboard`, `product_directory_snapshot`,
- * `purchase_order_directory_snapshot`, the scanner chain). Customer detail is
- * not one of them.
+ * ⚠️ Two things that were asked for do not exist, confirmed by the same
+ * search rather than assumed:
  *
- * Working agreement 8 says escalate rather than guess, so this file does not
- * invent a name. `CUSTOMER_DETAIL_RPC` is deliberately unset and the call site
- * falls back to fixtures until someone confirms it. Ask Kartikeya, then fill it
- * in here and delete this block.
- *
- * ⚠️ TODO(wiring) — THE FREQUENCY BUCKETS MUST COME FROM THE SERVER.
- *
- * `weeks` below is a five-element array, oldest first. Do NOT populate it by
- * pulling order history to the device and bucketing client-side:
- *
- *   - a customer with two years of orders is a large payload on a truck's LTE
- *   - week boundaries depend on the company's timezone and week-start, which
- *     live in the ERP, not on the handset
- *   - the phone and the web ERP would compute it separately and eventually
- *     disagree in front of a customer, which is worse than not shipping it
- *
- * The ask is one RPC returning, per item: item id, pack size, mean weekly
- * quantity, and the ordered bucket array. Small, cacheable, one source of truth.
+ * - **No five-week order-frequency bucket.** No RPC, anywhere in the repo,
+ *   returns a per-item per-week ordered/not-ordered array. `weeks` stays `[]`
+ *   from live data — never bucket order history on the device to fill it in
+ *   (payload size, timezone boundaries, and it would eventually disagree
+ *   with what the ERP shows for the same question).
+ * - **No "available credit" or "average order value" field**, on this RPC or
+ *   any other. Only the raw `creditLimit` exists. Do not compute either by
+ *   guessing what "used" or "average" means from `recentOrders` — that is
+ *   exactly the kind of client-derived number that quietly disagrees with
+ *   the ERP later. `figures` below only ever shows what's real.
  */
-export const CUSTOMER_DETAIL_RPC: string | null = null;
+export const CUSTOMER_DETAIL_RPC: string | null = 'get_current_customer_detail';
 
 /** Raw shape is unknown, so nothing here assumes a field exists. */
 type Raw = Record<string, unknown>;
@@ -67,34 +64,41 @@ function toneForStatus(raw: string): Tone {
   return 'neutral';
 }
 
+/**
+ * From `customer.mostCommonOrder`: a flat top-20-by-order-count list, not a
+ * week-bucketed one. `weeklyLabel`'s own doc comment says "12 cases a week"
+ * — that's not what this RPC gives us, so this reports the real total
+ * instead of inventing a weekly rate the data can't support.
+ */
 function mapFrequentItem(row: Raw, index: number): FrequentItem | null {
-  const name = str(pick(row, 'item_name', 'product_name', 'name'));
+  const name = str(pick(row, 'itemName', 'item_name', 'product_name', 'name'));
   if (!name) return null; // a row we cannot label is a row we do not render
 
-  const buckets = pick(row, 'week_buckets', 'weeks', 'frequency');
-  const weeks = Array.isArray(buckets)
-    ? buckets.map((b) => (typeof b === 'boolean' ? b : (num(b) ?? 0) > 0))
-    : [];
-
-  const weekly = num(pick(row, 'mean_weekly_quantity', 'avg_weekly_qty'));
-  const uom = str(pick(row, 'uom', 'unit_of_measure'), 'cases');
+  const uom = str(pick(row, 'uomCode', 'uom_code', 'uom'), 'ea');
+  const totalQty = num(pick(row, 'totalQuantity', 'total_quantity'));
+  const orderCount = num(pick(row, 'orderCount', 'order_count'));
 
   return {
-    id: str(pick(row, 'item_id', 'product_id', 'id'), `item-${index}`),
+    id: str(pick(row, 'productId', 'product_id', 'sku', 'id'), `item-${index}`),
     name,
-    packSize: str(pick(row, 'pack_size', 'pack', 'size'), '—'),
-    weeklyLabel: weekly === null ? 'volume unknown' : `${weekly} ${uom} a week`,
-    weeks,
+    // No pack-size field on this RPC — sku is the closest real identifier.
+    packSize: str(pick(row, 'sku'), '—'),
+    weeklyLabel:
+      totalQty === null || orderCount === null
+        ? 'volume unknown'
+        : `${totalQty} ${uom} across ${orderCount} order${orderCount === 1 ? '' : 's'}`,
+    // No per-week bucket RPC exists — see this file's header. Never fabricate one.
+    weeks: [],
   };
 }
 
 function mapRecentOrder(row: Raw, index: number): RecentOrder {
   const status = str(pick(row, 'status', 'state'), 'Unknown');
   return {
-    id: str(pick(row, 'order_id', 'id'), `order-${index}`),
-    reference: str(pick(row, 'order_number', 'reference', 'so_number'), '—'),
-    placedLabel: str(pick(row, 'placed_label', 'placed_at_display', 'placed_at'), ''),
-    total: money(pick(row, 'total', 'order_total', 'grand_total')),
+    id: str(pick(row, 'id', 'order_id'), `order-${index}`),
+    reference: str(pick(row, 'documentNumber', 'document_number', 'reference'), '—'),
+    placedLabel: str(pick(row, 'orderDate', 'order_date', 'placed_at'), ''),
+    total: money(pick(row, 'totalAmount', 'total_amount', 'total')),
     status: { label: status, tone: toneForStatus(status) },
   };
 }
@@ -107,33 +111,39 @@ function mapRecentOrder(row: Raw, index: number): RecentOrder {
  */
 export function toCustomerDetail(raw: Raw | null | undefined): CustomerDetail | null {
   if (!raw || typeof raw !== 'object') return null;
+  // The RPC nests everything under `customer` per the ERP's own schema —
+  // unwrap it the same defensive way the rest of this codebase unwraps a
+  // `payload.stop ?? payload`-shaped response.
+  const customer = ((raw as Raw).customer ?? raw) as Raw;
 
-  const name = str(pick(raw, 'customer_name', 'name', 'display_name'));
+  const name = str(pick(customer, 'name', 'customer_name', 'display_name'));
   if (!name) return null;
 
-  const creditLimit = pick(raw, 'credit_limit', 'creditLimit');
-  const available = pick(raw, 'credit_available', 'available_credit');
-  const avgOrder = pick(raw, 'average_order_value', 'avg_order_value');
-
+  const creditLimit = pick(customer, 'creditLimit', 'credit_limit');
+  // "Available credit" and "average order value" do not exist on this RPC —
+  // see this file's header. Only push a figure we can actually back.
   const figures: CustomerDetail['figures'] = [];
   if (creditLimit !== undefined) figures.push({ label: 'Credit limit', value: money(creditLimit) });
-  if (available !== undefined) figures.push({ label: 'Available', value: money(available), tone: 'ok' });
-  if (avgOrder !== undefined) figures.push({ label: 'Avg order', value: money(avgOrder) });
 
-  const frequentItems = arr(pick(raw, 'frequent_items', 'common_items', 'top_items'))
+  const frequentItems = arr(pick(customer, 'mostCommonOrder', 'most_common_order'))
     .map(mapFrequentItem)
     .filter((x): x is FrequentItem => x !== null);
 
-  const terms = str(pick(raw, 'payment_terms', 'terms'));
+  const priceTier = str(pick(customer, 'priceTier', 'price_tier'));
+  const terms = str(pick(customer, 'paymentTerms', 'payment_terms'));
 
   return {
-    id: str(pick(raw, 'customer_id', 'id'), 'unknown'),
+    id: str(pick(customer, 'id', 'customer_id'), 'unknown'),
     name,
-    tierLabel: str(pick(raw, 'tier_label', 'price_tier', 'tier'), 'Standard pricing'),
+    // priceTier is a code ("T1".."T5"), not a friendly label — this RPC
+    // doesn't hand back display text for it, so show the code rather than
+    // inventing wording for it.
+    tierLabel: priceTier ? `Tier ${priceTier}` : 'Standard pricing',
     standing: terms ? { label: terms, tone: 'ok' } : undefined,
     figures,
-    frequencyWeeks: frequentItems[0]?.weeks.length ?? 0,
+    // No week-bucket RPC — always 0 rather than a number the UI can't back.
+    frequencyWeeks: 0,
     frequentItems,
-    recentOrders: arr(pick(raw, 'recent_orders', 'orders')).map(mapRecentOrder),
+    recentOrders: arr(pick(customer, 'recentOrders', 'recent_orders')).map(mapRecentOrder),
   };
 }

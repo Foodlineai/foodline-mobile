@@ -1,29 +1,55 @@
+import { useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import React from 'react';
 
+import { EmptyState, ErrorState, Loading, Screen } from '@/components/ui';
 import { CustomerDetailScreen } from '@/features/customers/CustomerDetailScreen';
-import { CUSTOMER_DETAIL_RPC } from '@/features/customers/adapter';
-import { demoCustomer, demoCustomerNoPattern } from '@/features/customers/fixtures';
+import { useCompanyId } from '@/features/auth/auth-context';
+import { api } from '@/lib/api';
 
 /**
- * Screen 06 — Customer 360. `CUSTOMER_DETAIL_RPC` is unconfirmed (see
- * adapter.ts's header), so this always serves the fixture for now — not a
- * shortcut, the documented fallback until Lane A confirms the RPC name.
+ * Screen 06 — Customer 360, on `get_current_customer_detail` (confirmed
+ * against the live ERP source 29 Sep — see adapter.ts's header for what it
+ * does and doesn't return).
  */
 export default function CustomerDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  void CUSTOMER_DETAIL_RPC; // referenced so the unconfirmed-RPC TODO stays visible here too
+  const companyId = useCompanyId();
 
-  // The live customer list (`c1`/`c2`/`c3`) and this fixture set (`cust-*`)
-  // don't share ids yet — there's no RPC to join them on. Riverside exercises
-  // the no-repeat-pattern empty state on purpose; everything else falls back
-  // to the one full fixture rather than a 404 for an id we can't resolve.
-  const customer = id === 'c1' || id === demoCustomerNoPattern.id ? demoCustomerNoPattern : demoCustomer;
+  const detail = useQuery({
+    queryKey: ['customer', 'detail', companyId, id],
+    queryFn: () => api.customers.detail(companyId, id!),
+    enabled: Boolean(id),
+  });
+
+  if (detail.isPending) {
+    return (
+      <Screen>
+        <Loading label="Loading customer" />
+      </Screen>
+    );
+  }
+  if (detail.isLoadingError) {
+    return (
+      <Screen>
+        <ErrorState message={(detail.error as Error).message} onRetry={() => detail.refetch()} />
+      </Screen>
+    );
+  }
+  if (!detail.data) {
+    return (
+      <Screen>
+        <EmptyState title="Customer not found" hint="It may have been reassigned or removed." />
+      </Screen>
+    );
+  }
+
+  const customer = detail.data;
 
   return (
     <CustomerDetailScreen
       customer={customer}
-      onBuildOrder={() => router.push(`/(app)/routine/${demoCustomer.id}`)}
+      onBuildOrder={() => router.push(`/(app)/routine/${customer.id}`)}
       onOpenOrder={() => router.push('/tools/sales')}
     />
   );

@@ -15,6 +15,9 @@ import type {
   StopDetail,
   UUID,
 } from './types';
+import type { CustomerDetail } from '@/features/customers/types';
+import type { DraftedPurchaseOrder } from '@/features/routines/types';
+import type { ShipmentDraft } from '@/features/shipments/types';
 
 /**
  * The single seam between the app and the ERP.
@@ -95,5 +98,39 @@ export interface FoodlineApi {
         idempotencyKey: string;
       }
     ): Promise<void>;
+  };
+  customers: {
+    /**
+     * `get_current_customer_detail` — confirmed against the live ERP source
+     * (foodline-frontend, 29 Sep). It does not carry a five-week order-
+     * frequency bucket for any item — that RPC does not exist yet, confirmed
+     * by the same search, not assumed. `frequentItems[].weeks` is always `[]`
+     * from the live adapter until it does; never bucket order history on the
+     * device to fill it in.
+     */
+    detail(companyId: UUID, customerId: UUID): Promise<CustomerDetail | null>;
+  };
+  routines: {
+    /**
+     * `decide_purchase_order_approval_command` with `p_outcome: 'approve'`.
+     * Approves the draft's *approval cycle*, not the PO row directly — needs
+     * `draft.approvalCycleId` and `draft.approvalRequestRowVersion` alongside
+     * the PO's own `rowVersion`. Idempotent via `idempotencyKey`.
+     */
+    approveDraftedPurchaseOrder(
+      companyId: UUID,
+      input: { draft: DraftedPurchaseOrder; idempotencyKey: string }
+    ): Promise<void>;
+  };
+  shipments: {
+    /**
+     * `ship_current_sales_order`. That RPC has no customer-reference
+     * parameter (confirmed against the live source — customer reference
+     * lives on the separate invoice command, not shipment), so
+     * `draft.customerReference` is accepted by this method but not sent
+     * anywhere yet; the UI field stays because the delivered screen isn't
+     * being rewritten, but nothing should assume it's persisted.
+     */
+    post(companyId: UUID, draft: ShipmentDraft, idempotencyKey: string): Promise<void>;
   };
 }

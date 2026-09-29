@@ -25,6 +25,8 @@ export type RoutineApprovalScreenProps = {
   steps: Step[];
   draft?: DraftedPurchaseOrder;
   approving?: boolean;
+  /** A failed approve attempt — a row-version conflict, a network error. */
+  error?: string | null;
   onReviewAndApprove: (draft: DraftedPurchaseOrder) => void;
   onEditDraft: (draft: DraftedPurchaseOrder) => void;
 };
@@ -34,6 +36,7 @@ export function RoutineApprovalScreen({
   steps,
   draft,
   approving = false,
+  error,
   onReviewAndApprove,
   onEditDraft,
 }: RoutineApprovalScreenProps) {
@@ -107,6 +110,10 @@ export function RoutineApprovalScreen({
               the approval gate on this order.
             </Text>
           </View>
+
+          {error ? (
+            <Text style={{ ...typeScale.small, color: colors.danger.DEFAULT }}>{error}</Text>
+          ) : null}
 
           <View style={styles.actions}>
             <FoodlineButton

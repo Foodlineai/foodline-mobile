@@ -17,6 +17,8 @@ import type {
   Session,
   StopDetail,
 } from './types';
+import { demoCustomer, demoCustomerNoPattern } from '@/features/customers/fixtures';
+import { demoDraftedPO } from '@/features/routines/fixtures';
 
 const COMPANY_ID = '00000000-0000-4000-8000-000000000001';
 
@@ -285,6 +287,38 @@ export const demoApi: FoodlineApi = {
       if (task.remainingBaseQuantity <= 0) throw new Error(`${task.productName} is already fully received`);
       task.priorReceivedBaseQuantity += 1;
       task.remainingBaseQuantity -= 1;
+    },
+  },
+
+  customers: {
+    async detail(_companyId, customerId) {
+      await wait();
+      // 'c1' is Riverside Market in the sales-customers fixture (a separate
+      // demo dataset authored before this one) — mapped here so tapping it
+      // from Sales still exercises the no-repeat-pattern empty state instead
+      // of always landing on Cedar Grove.
+      return customerId === 'c1' || customerId === demoCustomerNoPattern.id
+        ? demoCustomerNoPattern
+        : demoCustomer;
+    },
+  },
+
+  routines: {
+    async approveDraftedPurchaseOrder(_companyId, input) {
+      await wait(220);
+      if (usedIdempotencyKeys.has(input.idempotencyKey)) return;
+      if (input.draft.rowVersion !== demoDraftedPO.rowVersion) {
+        throw new Error('This draft changed since you loaded it. Reload and try again.');
+      }
+      usedIdempotencyKeys.add(input.idempotencyKey);
+    },
+  },
+
+  shipments: {
+    async post(_companyId, _draft, idempotencyKey) {
+      await wait(220);
+      if (usedIdempotencyKeys.has(idempotencyKey)) return;
+      usedIdempotencyKeys.add(idempotencyKey);
     },
   },
 };

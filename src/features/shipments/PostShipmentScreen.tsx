@@ -21,6 +21,9 @@ export type PostShipmentScreenProps = {
   target: ShipmentTarget;
   initialDate: string;
   posting?: boolean;
+  /** A failed submit attempt — a row-version conflict, a network error. Not
+   * a client-side validation message; those stay inline per-field. */
+  error?: string | null;
   onPost: (draft: ShipmentDraft) => void;
 };
 
@@ -28,6 +31,7 @@ export function PostShipmentScreen({
   target,
   initialDate,
   posting = false,
+  error,
   onPost,
 }: PostShipmentScreenProps) {
   const [shipmentDate, setShipmentDate] = useState(initialDate);
@@ -123,6 +127,8 @@ export function PostShipmentScreen({
           when it is packed.
         </Text>
       </View>
+
+      {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <FoodlineButton
         label="Post shipment"

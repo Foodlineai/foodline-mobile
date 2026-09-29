@@ -5,7 +5,7 @@ import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader, initialsFrom } from '@/components/app-header';
-import { EmptyState, ErrorState, Group, ListRow, Loading, Screen } from '@/components/ui';
+import { EmptyState, ErrorState, Group, ListRow, Loading, Screen, StaleBanner } from '@/components/ui';
 import { useAuth, useCompanyId } from '@/features/auth/auth-context';
 import { api } from '@/lib/api';
 
@@ -23,10 +23,11 @@ export default function Activity() {
           refreshControl={<RefreshControl refreshing={home.isRefetching} onRefresh={() => home.refetch()} />}
         >
           <Text className="text-3xl font-bold text-ink">Activity</Text>
+          {home.isRefetchError ? <StaleBanner updatedAt={home.dataUpdatedAt} /> : null}
 
           {home.isPending ? (
             <Loading />
-          ) : home.isError ? (
+          ) : home.isLoadingError ? (
             <ErrorState message={(home.error as Error).message} onRetry={() => home.refetch()} />
           ) : home.data.acrossCompany.length === 0 ? (
             <EmptyState title="Nothing to report" hint="Company activity appears here through the day." />

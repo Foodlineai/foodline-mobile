@@ -25,6 +25,9 @@ import type {
   UUID,
 } from './types';
 import * as workos from '@/features/auth/workos';
+import { toCustomerDetail } from '@/features/customers/adapter';
+import type { DraftedPurchaseOrder } from '@/features/routines/types';
+import type { ShipmentDraft } from '@/features/shipments/types';
 
 /**
  * Live adapter. Every call is an RPC — there are no direct table reads, because
@@ -469,6 +472,43 @@ export const supabaseApi: FoodlineApi = {
         p_input_method: input.inputMethod,
         p_idempotency_key: input.idempotencyKey,
         p_client_occurred_at: new Date().toISOString(),
+      });
+    },
+  },
+
+  customers: {
+    async detail(companyId, customerId) {
+      const payload = await call(companyId, 'get_current_customer_detail', { p_customer_id: customerId });
+      return toCustomerDetail(payload as Row);
+    },
+  },
+
+  routines: {
+    async approveDraftedPurchaseOrder(companyId, input) {
+      const draft = input.draft as DraftedPurchaseOrder;
+      await call(companyId, 'decide_purchase_order_approval_command', {
+        p_command_key: input.idempotencyKey,
+        p_approval_cycle_id: draft.approvalCycleId,
+        p_expected_purchase_order_row_version: draft.rowVersion,
+        p_expected_approval_request_row_version: draft.approvalRequestRowVersion,
+        p_outcome: 'approve',
+      });
+    },
+  },
+
+  shipments: {
+    async post(companyId, draft: ShipmentDraft, idempotencyKey: string) {
+      // No p_customer_reference on this RPC (confirmed against the live
+      // source — that field lives on the invoice command, not shipment).
+      // draft.customerReference is intentionally not sent anywhere here.
+      await call(companyId, 'ship_current_sales_order', {
+        p_command_key: idempotencyKey,
+        p_sales_order_id: draft.orderId,
+        p_expected_row_version: draft.rowVersion,
+        p_shipped_on: draft.shipmentDate,
+        p_carrier: draft.carrier,
+        p_tracking_number: draft.trackingNumber,
+        p_notes: draft.internalNote,
       });
     },
   },

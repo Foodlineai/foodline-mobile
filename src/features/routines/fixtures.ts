@@ -26,4 +26,6 @@ export const demoDraftedPO: DraftedPurchaseOrder = {
   ],
   lineOverflow: 1,
   rowVersion: 'demo-v1',
+  approvalCycleId: 'demo-cycle-1',
+  approvalRequestRowVersion: 'demo-v1',
 };
