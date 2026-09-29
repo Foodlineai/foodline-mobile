@@ -61,11 +61,12 @@ When you do need live data, ask Mehul for:
 
 | Variable | What it is |
 |---|---|
-| `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | staging anon key |
-| `EXPO_PUBLIC_WORKOS_CLIENT_ID` | AuthKit client id |
+| `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | staging publishable key |
 
-The Supabase URL and the redirect URI are already in `.env.example` and are not
-secret.
+That is the only blank in the file. The Supabase URL, the WorkOS client id and
+the auth domain are already filled in and are not secret — the publishable key is
+browser-safe by design, and row-level security plus the WorkOS session are what
+actually protect the data.
 
 ### Two things that will bite
 
