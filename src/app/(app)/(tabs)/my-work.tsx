@@ -14,6 +14,7 @@ import {
   Loading,
   Screen,
   SectionHeader,
+  StaleBanner,
 } from '@/components/ui';
 import { useAuth, useCompanyId } from '@/features/auth/auth-context';
 import { api } from '@/lib/api';
@@ -45,11 +46,13 @@ export default function MyWork() {
             onPress={() => router.push('/receiving')}
           />
 
+          {home.isRefetchError ? <StaleBanner updatedAt={home.dataUpdatedAt} /> : null}
+
           <View className="gap-3">
             <SectionHeader title="Assigned to you" />
             {home.isPending ? (
               <Loading label="Loading your queue" />
-            ) : home.isError ? (
+            ) : home.isLoadingError ? (
               <ErrorState message={(home.error as Error).message} onRetry={() => home.refetch()} />
             ) : home.data.needsYou.length === 0 ? (
               <EmptyState title="Your queue is clear" hint="New tasks land here as they are assigned." />
