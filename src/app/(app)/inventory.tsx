@@ -15,6 +15,7 @@ import {
   NoticeCard,
   Screen as ScreenRoot,
   SeeAllHeader,
+  StaleBanner,
   StatusPill,
 } from '@/components/ui';
 import { useAuth, useCompanyId } from '@/features/auth/auth-context';
@@ -63,6 +64,7 @@ export default function Inventory() {
           keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={items.isRefetching} onRefresh={() => items.refetch()} />}
         >
+          {items.isRefetchError ? <StaleBanner updatedAt={items.dataUpdatedAt} /> : null}
           <Text className="text-3xl font-bold text-ink">Your stock work</Text>
 
           <Button label="Scan item or location" icon="maximize" onPress={() => router.push('/receiving')} />
@@ -92,7 +94,7 @@ export default function Inventory() {
             <SeeAllHeader title="Stock" onSeeAll={() => router.push('/tools/inventory')} />
             {items.isPending ? (
               <Loading label="Loading inventory" />
-            ) : items.isError ? (
+            ) : items.isLoadingError ? (
               <ErrorState message={(items.error as Error).message} onRetry={() => items.refetch()} />
             ) : items.data.length === 0 ? (
               <EmptyState title="No items match" hint="Try a different search or clear the filter." />

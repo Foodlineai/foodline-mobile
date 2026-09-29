@@ -15,6 +15,7 @@ import {
   NoticeCard,
   Screen,
   SeeAllHeader,
+  StaleBanner,
   StatusPill,
 } from '@/components/ui';
 import { useAuth, useCompanyId } from '@/features/auth/auth-context';
@@ -42,13 +43,14 @@ export default function Sales() {
 
         {sales.isPending ? (
           <Loading label="Loading sales" />
-        ) : sales.isError ? (
+        ) : sales.isLoadingError ? (
           <ErrorState message={(sales.error as Error).message} onRetry={() => sales.refetch()} />
         ) : (
           <ScrollView
             contentContainerClassName="gap-6 px-5 pb-10 pt-3"
             refreshControl={<RefreshControl refreshing={sales.isRefetching} onRefresh={() => sales.refetch()} />}
           >
+            {sales.isRefetchError ? <StaleBanner updatedAt={sales.dataUpdatedAt} /> : null}
             <ModuleHero
               eyebrow="Operations"
               title="Sales & Customers"

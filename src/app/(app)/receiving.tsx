@@ -17,6 +17,7 @@ import {
   Loading,
   NoticeCard,
   Screen,
+  StaleBanner,
   StatusPill,
 } from '@/components/ui';
 import { useCompanyId } from '@/features/auth/auth-context';
@@ -143,7 +144,7 @@ export default function Receiving() {
       <StepScreen title="Where are you receiving?" step="Step 1 of 3">
         {warehouses.isPending ? (
           <Loading label="Loading warehouses" />
-        ) : warehouses.isError ? (
+        ) : warehouses.isLoadingError ? (
           <ErrorState message={(warehouses.error as Error).message} onRetry={() => warehouses.refetch()} />
         ) : warehouses.data.length === 0 ? (
           <EmptyState
@@ -177,9 +178,10 @@ export default function Receiving() {
         refreshing={dock.isRefetching}
         onRefresh={() => dock.refetch()}
       >
+        {dock.isRefetchError ? <StaleBanner updatedAt={dock.dataUpdatedAt} /> : null}
         {dock.isPending ? (
           <Loading label="Loading the dock" />
-        ) : dock.isError ? (
+        ) : dock.isLoadingError ? (
           <ErrorState message={(dock.error as Error).message} onRetry={() => dock.refetch()} />
         ) : dock.data.length === 0 ? (
           <EmptyState
@@ -302,7 +304,16 @@ function ScanQueue({
   ending,
 }: {
   receipt: DockReceipt;
-  queue: { isPending: boolean; isError: boolean; error: unknown; data?: ReceivingTask[]; refetch: () => void };
+  queue: {
+    isPending: boolean;
+    isError: boolean;
+    isLoadingError: boolean;
+    isRefetchError: boolean;
+    dataUpdatedAt: number;
+    error: unknown;
+    data?: ReceivingTask[];
+    refetch: () => void;
+  };
   message: string | null;
   lastScan: string | null;
   submitting: boolean;
@@ -323,9 +334,10 @@ function ScanQueue({
           </Text>
         </View>
 
+        {queue.isRefetchError ? <StaleBanner updatedAt={queue.dataUpdatedAt} /> : null}
         {queue.isPending ? (
           <Loading label="Loading receiving queue" />
-        ) : queue.isError ? (
+        ) : queue.isLoadingError ? (
           <ErrorState message={(queue.error as Error).message} onRetry={queue.refetch} />
         ) : (
           <FlatList

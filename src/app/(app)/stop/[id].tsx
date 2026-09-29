@@ -18,6 +18,7 @@ import {
   ListRow,
   Loading,
   Screen,
+  StaleBanner,
   StatusPill,
 } from '@/components/ui';
 import { useAuth, useCompanyId } from '@/features/auth/auth-context';
@@ -79,12 +80,13 @@ export default function StopDetail() {
 
         {detail.isPending ? (
           <Loading label="Loading stop" />
-        ) : detail.isError ? (
+        ) : detail.isLoadingError ? (
           <ErrorState message={(detail.error as Error).message} onRetry={() => detail.refetch()} />
         ) : !detail.data ? (
           <EmptyState title="Stop not found" hint="It may have been reassigned." />
         ) : (
           <ScrollView contentContainerClassName="gap-6 px-5 pb-10 pt-3">
+            {detail.isRefetchError ? <StaleBanner updatedAt={detail.dataUpdatedAt} /> : null}
             <View className="gap-2">
               <Text className="text-3xl font-bold text-ink">
                 Stop {detail.data.stop.sequence} · {detail.data.stop.customerName}

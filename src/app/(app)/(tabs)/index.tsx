@@ -15,6 +15,7 @@ import {
   NoticeCard,
   Screen,
   SectionHeader,
+  StaleBanner,
   StatTile,
   type IconName,
 } from '@/components/ui';
@@ -51,13 +52,14 @@ export default function Home() {
 
         {home.isPending ? (
           <Loading label="Loading your day" />
-        ) : home.isError ? (
+        ) : home.isLoadingError ? (
           <ErrorState message={(home.error as Error).message} onRetry={() => home.refetch()} />
         ) : (
           <ScrollView
             contentContainerClassName="gap-6 px-5 pb-10 pt-4"
             refreshControl={<RefreshControl refreshing={home.isRefetching} onRefresh={() => home.refetch()} />}
           >
+            {home.isRefetchError ? <StaleBanner updatedAt={home.dataUpdatedAt} /> : null}
             <View className="gap-1">
               <Text className="text-3xl font-bold text-ink">
                 {greeting()}

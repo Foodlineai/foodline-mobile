@@ -425,6 +425,34 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
   );
 }
 
+/**
+ * A refetch failed but we still have last-known data — show it, with this,
+ * rather than an error screen or (worse) nothing. `contracts/screen-rpc-map.md`
+ * rule 6: "a driver who sees a blank stop list assumes the app is broken."
+ * Pass `query.dataUpdatedAt` straight through; render only when
+ * `query.isRefetchError` is true.
+ */
+export function StaleBanner({ updatedAt }: { updatedAt: number }) {
+  return (
+    <View className="flex-row items-center gap-2 rounded-xl border border-warn-border bg-warn-tint px-3 py-2.5">
+      <Feather name="wifi-off" size={14} color={COLORS.warn} />
+      <Text className="flex-1 text-xs font-medium text-warn">
+        Offline · showing data from {relativeTime(updatedAt)}
+      </Text>
+    </View>
+  );
+}
+
+function relativeTime(ts: number): string {
+  const mins = Math.round((Date.now() - ts) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} minute${mins === 1 ? '' : 's'} ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+}
+
 export function EmptyState({ title, hint }: { title: string; hint?: string }) {
   return (
     <View className="items-center justify-center gap-2 px-8 py-16">

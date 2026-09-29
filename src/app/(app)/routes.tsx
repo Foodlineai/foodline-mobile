@@ -17,6 +17,7 @@ import {
   Loading,
   COLORS,
   Screen,
+  StaleBanner,
   StatusPill,
 } from '@/components/ui';
 import { useAuth, useCompanyId } from '@/features/auth/auth-context';
@@ -47,7 +48,7 @@ export default function Routes() {
 
         {route.isPending ? (
           <Loading label="Loading your route" />
-        ) : route.isError ? (
+        ) : route.isLoadingError ? (
           <ErrorState message={(route.error as Error).message} onRetry={() => route.refetch()} />
         ) : !route.data ? (
           <EmptyState title="No route assigned" hint="Routes appear here once dispatch assigns one to you." />
@@ -56,6 +57,8 @@ export default function Routes() {
             contentContainerClassName="gap-5 px-5 pb-10 pt-3"
             refreshControl={<RefreshControl refreshing={route.isRefetching} onRefresh={() => route.refetch()} />}
           >
+            {route.isRefetchError ? <StaleBanner updatedAt={route.dataUpdatedAt} /> : null}
+
             <View className="gap-1">
               <Text className="text-3xl font-bold text-ink">Today&apos;s route</Text>
               <Text className="text-base text-ink-muted">

@@ -16,6 +16,7 @@ import {
   MiniStat,
   Screen,
   SeeAllHeader,
+  StaleBanner,
   StatusPill,
 } from '@/components/ui';
 import { useAuth, useCompanyId } from '@/features/auth/auth-context';
@@ -37,13 +38,14 @@ export default function Purchasing() {
 
         {summary.isPending ? (
           <Loading label="Loading purchasing" />
-        ) : summary.isError ? (
+        ) : summary.isLoadingError ? (
           <ErrorState message={(summary.error as Error).message} onRetry={() => summary.refetch()} />
         ) : (
           <ScrollView
             contentContainerClassName="gap-6 px-5 pb-10 pt-3"
             refreshControl={<RefreshControl refreshing={summary.isRefetching} onRefresh={() => summary.refetch()} />}
           >
+            {summary.isRefetchError ? <StaleBanner updatedAt={summary.dataUpdatedAt} /> : null}
             <Text className="text-3xl font-bold text-ink">Buying today</Text>
 
             <View className="flex-row gap-3">
