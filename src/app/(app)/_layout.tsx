@@ -1,7 +1,9 @@
-import { Redirect, Stack } from 'expo-router';
+import { Redirect, Stack, usePathname } from 'expo-router';
 import React from 'react';
+import { Alert, View } from 'react-native';
 
 import { COLORS, Loading, Screen } from '@/components/ui';
+import { CopilotBlob } from '@/components/CopilotBlob';
 import { useAuth } from '@/features/auth/auth-context';
 
 export default function AppLayout() {
@@ -18,27 +20,76 @@ export default function AppLayout() {
   if (!companyId) return <Redirect href="/(auth)/select-company" />;
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: true,
-        headerTintColor: COLORS.brand,
-        headerTitleStyle: { color: COLORS.ink, fontWeight: '700' },
-        headerStyle: { backgroundColor: COLORS.surface },
-        headerShadowVisible: false,
-        contentStyle: { backgroundColor: COLORS.surface },
+    <View style={{ flex: 1 }}>
+      <Stack
+        screenOptions={{
+          headerShown: true,
+          headerTintColor: COLORS.brand,
+          headerTitleStyle: { color: COLORS.ink, fontWeight: '700' },
+          headerStyle: { backgroundColor: COLORS.surface },
+          headerShadowVisible: false,
+          contentStyle: { backgroundColor: COLORS.surface },
+        }}
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="sales" options={{ title: 'Sales & Customers' }} />
+        <Stack.Screen name="inventory" options={{ title: 'Inventory' }} />
+        <Stack.Screen name="purchasing" options={{ title: 'Purchasing' }} />
+        <Stack.Screen name="receiving" options={{ title: 'Receiving' }} />
+        <Stack.Screen name="routes" options={{ title: 'Routes & Delivery' }} />
+        <Stack.Screen name="stop/[id]" options={{ title: 'Stop' }} />
+        <Stack.Screen name="tools/[module]" options={{ title: 'Tools' }} />
+        <Stack.Screen name="customer/[id]" options={{ title: 'Customer' }} />
+        <Stack.Screen name="routine/[id]" options={{ title: 'Routine' }} />
+        <Stack.Screen name="shipment/[orderId]" options={{ title: 'Post shipment' }} />
+        <Stack.Screen name="account" options={{ title: 'Account' }} />
+      </Stack>
+      <GlobalCopilot />
+    </View>
+  );
+}
+
+const ROUTE_LABELS: Record<string, string> = {
+  '/': 'Home',
+  '/my-work': 'My Work',
+  '/activity': 'Activity',
+  '/search': 'Search',
+  '/more': 'Workspaces',
+  '/sales': 'Sales & Customers',
+  '/inventory': 'Inventory',
+  '/purchasing': 'Purchasing',
+  '/receiving': 'Receiving',
+  '/routes': 'Routes & Delivery',
+  '/account': 'Account',
+};
+
+/**
+ * B9 — the AI present in every module (Chris's 31 Aug ask), as a floating
+ * entry point rather than a tab-bar rewrite. `contracts/design.md`'s raised
+ * centre AI *tab* was explicitly deferred out of v3 because it touches every
+ * screen's navigation; this delivered component (CopilotBlob) answers the
+ * same ask without that risk — it's an overlay, not a nav change.
+ *
+ * Page-aware only as far as a route-to-label lookup for now; the real
+ * "what's on this screen" context and suggestions need a live Copilot
+ * backend that doesn't exist yet. `onAsk` intentionally does not fabricate a
+ * response — same discipline as the rest of this app's "AI connection
+ * pending" states elsewhere.
+ */
+function GlobalCopilot() {
+  const pathname = usePathname();
+  const contextLabel = ROUTE_LABELS[pathname] ?? 'Foodline AI';
+
+  return (
+    <CopilotBlob
+      contextLabel={contextLabel}
+      onRunSuggestion={() => {}}
+      onAsk={() => {
+        // The blob's own sheet has no reply channel — it closes on send. No
+        // Copilot backend exists yet either, so this says so plainly rather
+        // than fabricating a reply or letting the question vanish silently.
+        Alert.alert('Not connected yet', "The Copilot isn't wired to a live AI service in this build.");
       }}
-    >
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="sales" options={{ title: 'Sales & Customers' }} />
-      <Stack.Screen name="inventory" options={{ title: 'Inventory' }} />
-      <Stack.Screen name="purchasing" options={{ title: 'Purchasing' }} />
-      <Stack.Screen name="receiving" options={{ title: 'Receiving' }} />
-      <Stack.Screen name="routes" options={{ title: 'Routes & Delivery' }} />
-      <Stack.Screen name="stop/[id]" options={{ title: 'Stop' }} />
-      <Stack.Screen name="tools/[module]" options={{ title: 'Tools' }} />
-      <Stack.Screen name="customer/[id]" options={{ title: 'Customer' }} />
-      <Stack.Screen name="routine/[id]" options={{ title: 'Routine' }} />
-      <Stack.Screen name="shipment/[orderId]" options={{ title: 'Post shipment' }} />
-    </Stack>
+    />
   );
 }

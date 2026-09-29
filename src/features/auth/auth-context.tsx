@@ -3,12 +3,18 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { api } from '@/lib/api';
 import type { Company, Session, UUID } from '@/lib/api';
 import { resetSupabase } from '@/lib/supabase';
+import { derivePersona } from '@/personas/derive';
+import type { Persona } from '@/personas/types';
 
 type AuthState = {
   session: Session | null;
   /** The company whose data is being shown. Null until one is selected. */
   companyId: UUID | null;
   company: Company | null;
+  /** Derived from `company.roleKey` — see personas/derive.ts for what's
+   * confirmed vs a judgment call in that mapping. Null until a company is
+   * selected, same as `company`. */
+  persona: Persona | null;
   loading: boolean;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -73,9 +79,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [session, companyId]
   );
 
+  const persona = useMemo(() => (company ? derivePersona(company) : null), [company]);
+
   const value = useMemo(
-    () => ({ session, companyId, company, loading, signIn, signOut, selectCompany }),
-    [session, companyId, company, loading, signIn, signOut, selectCompany]
+    () => ({ session, companyId, company, persona, loading, signIn, signOut, selectCompany }),
+    [session, companyId, company, persona, loading, signIn, signOut, selectCompany]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

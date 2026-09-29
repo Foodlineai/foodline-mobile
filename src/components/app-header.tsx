@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 
@@ -48,7 +49,14 @@ export function AppHeader({
           {name}
           {inlinePill ? <ContextPill label={context} /> : null}
         </View>
-        <Avatar initials={initials} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Account"
+          onPress={() => router.push('/account')}
+          hitSlop={8}
+        >
+          <Avatar initials={initials} />
+        </Pressable>
       </View>
       {inlinePill ? null : <ContextPill label={context} />}
     </View>
