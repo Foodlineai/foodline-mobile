@@ -71,15 +71,23 @@ function deriveStatus(onHand: number, par: number | null): StockStatus {
   return 'ok';
 }
 
+/** `health` enum confirmed on `product_directory_snapshot`'s row payload —
+ * a single combined status, not independent below-par/expiring flags. */
+const EXPIRING_HEALTH = new Set(['expiring_lot', 'margin_and_expiry']);
+
 function toItem(r: Row): Item {
   const onHand = num(r.on_hand ?? r.quantity_on_hand);
   const parLevel = numOrNull(r.par_level ?? r.target_level);
+  const baseUom = r.baseUom as Row | undefined;
+  const warehouseBalances = Array.isArray(r.warehouseBalances) ? (r.warehouseBalances as Row[]) : [];
+  const preferredBin = (warehouseBalances[0]?.preferredBin as Row | undefined) ?? undefined;
+  const health = str(r.health);
   return {
     id: str(r.id ?? r.product_id),
     sku: str(r.sku ?? r.product_sku),
-    name: str(r.name ?? r.product_name),
+    name: str(r.displayName ?? r.name ?? r.product_name),
     category: (r.category as string | null) ?? null,
-    uom: str(r.uom_code ?? r.uom, 'EA'),
+    uom: str(baseUom?.code ?? r.uom_code ?? r.uom, 'EA'),
     onHand,
     onOrder: num(r.on_order ?? r.quantity_on_order),
     parLevel,
@@ -87,6 +95,9 @@ function toItem(r: Row): Item {
     lastCost: numOrNull(r.last_cost ?? r.unit_cost),
     primaryVendorName: (r.primary_vendor_name as string | null) ?? null,
     status: (r.status as StockStatus) ?? deriveStatus(onHand, parLevel),
+    catchWeight: r.catchWeight === true,
+    binLocation: preferredBin ? str(preferredBin.code) || null : null,
+    expiringSoon: EXPIRING_HEALTH.has(health),
   };
 }
 

@@ -37,12 +37,12 @@ const SESSION: Session = {
 };
 
 const ITEMS: Item[] = [
-  { id: 'i1', sku: 'PRD-1042', name: 'Romaine Hearts, 24ct', category: 'Produce', uom: 'CS', onHand: 18, onOrder: 40, parLevel: 60, daysCover: 2.1, lastCost: 32.5, primaryVendorName: 'Valley Greens', status: 'low' },
-  { id: 'i2', sku: 'DRY-2210', name: 'Olive Oil, Extra Virgin 4/1gal', category: 'Dry Goods', uom: 'CS', onHand: 96, onOrder: 0, parLevel: 60, daysCover: 22.4, lastCost: 88, primaryVendorName: 'Mediterra Imports', status: 'over' },
-  { id: 'i3', sku: 'PRO-0771', name: 'Chicken Breast, Boneless 40lb', category: 'Protein', uom: 'CS', onHand: 0, onOrder: 24, parLevel: 30, daysCover: 0, lastCost: 104.75, primaryVendorName: 'Southern Poultry Co', status: 'out' },
-  { id: 'i4', sku: 'DAI-0310', name: 'Heavy Cream 12/qt', category: 'Dairy', uom: 'CS', onHand: 44, onOrder: 12, parLevel: 40, daysCover: 6.8, lastCost: 41.2, primaryVendorName: 'Peachtree Dairy', status: 'ok' },
-  { id: 'i5', sku: 'FRZ-5580', name: 'Shoestring Fries 6/5lb', category: 'Frozen', uom: 'CS', onHand: 7, onOrder: 0, parLevel: 25, daysCover: 1.4, lastCost: 27.9, primaryVendorName: 'Northline Frozen', status: 'low' },
-  { id: 'i6', sku: 'PRD-1188', name: 'Roma Tomatoes 25lb', category: 'Produce', uom: 'CS', onHand: 31, onOrder: 20, parLevel: 30, daysCover: 4.2, lastCost: 24, primaryVendorName: 'Valley Greens', status: 'ok' },
+  { id: 'i1', sku: 'PRD-1042', name: 'Romaine Hearts, 24ct', category: 'Produce', uom: 'CS', onHand: 18, onOrder: 40, parLevel: 60, daysCover: 2.1, lastCost: 32.5, primaryVendorName: 'Valley Greens', status: 'low', catchWeight: false, binLocation: 'CHILL-A03', expiringSoon: false },
+  { id: 'i2', sku: 'DRY-2210', name: 'Olive Oil, Extra Virgin 4/1gal', category: 'Dry Goods', uom: 'CS', onHand: 96, onOrder: 0, parLevel: 60, daysCover: 22.4, lastCost: 88, primaryVendorName: 'Mediterra Imports', status: 'over', catchWeight: false, binLocation: 'DRY-B12', expiringSoon: false },
+  { id: 'i3', sku: 'PRO-0771', name: 'Chicken Breast, Boneless 40lb', category: 'Protein', uom: 'CS', onHand: 0, onOrder: 24, parLevel: 30, daysCover: 0, lastCost: 104.75, primaryVendorName: 'Southern Poultry Co', status: 'out', catchWeight: true, binLocation: 'FRZ-C02', expiringSoon: false },
+  { id: 'i4', sku: 'DAI-0310', name: 'Heavy Cream 12/qt', category: 'Dairy', uom: 'CS', onHand: 44, onOrder: 12, parLevel: 40, daysCover: 6.8, lastCost: 41.2, primaryVendorName: 'Peachtree Dairy', status: 'ok', catchWeight: false, binLocation: 'CHILL-A07', expiringSoon: true },
+  { id: 'i5', sku: 'FRZ-5580', name: 'Shoestring Fries 6/5lb', category: 'Frozen', uom: 'CS', onHand: 7, onOrder: 0, parLevel: 25, daysCover: 1.4, lastCost: 27.9, primaryVendorName: 'Northline Frozen', status: 'low', catchWeight: false, binLocation: 'FRZ-C08', expiringSoon: false },
+  { id: 'i6', sku: 'PRD-1188', name: 'Roma Tomatoes 25lb', category: 'Produce', uom: 'CS', onHand: 31, onOrder: 20, parLevel: 30, daysCover: 4.2, lastCost: 24, primaryVendorName: 'Valley Greens', status: 'ok', catchWeight: true, binLocation: 'CHILL-A03', expiringSoon: true },
 ];
 
 const ORDERS: PurchaseOrder[] = [

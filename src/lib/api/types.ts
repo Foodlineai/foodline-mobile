@@ -37,6 +37,17 @@ export type Item = {
   lastCost: number | null;
   primaryVendorName: string | null;
   status: StockStatus;
+  /** `product.catch_weight` on `product_directory_snapshot` — confirmed real,
+   * not a guess. False means sold/tracked by a fixed case count. */
+  catchWeight: boolean;
+  /** `warehouseBalances[0].preferredBin.code` — confirmed real, permission-
+   * gated (null when the actor lacks inventory.read), so treat absence as
+   * "not shown", not "no bin". */
+  binLocation: string | null;
+  /** From the RPC's combined `health` enum (`reorder_soon`, `stockout_risk`,
+   * `expiring_lot`, `margin_and_expiry`, ...) — a single status, not two
+   * independent flags, and it carries no date. */
+  expiringSoon: boolean;
 };
 
 export type PurchaseOrderStatus = 'draft' | 'sent' | 'confirmed' | 'partial' | 'received' | 'cancelled';
