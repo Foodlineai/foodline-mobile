@@ -118,7 +118,7 @@ export default function Purchasing() {
               )}
             </View>
 
-            <Button label="New purchase order" icon="plus" onPress={() => router.push('/tools/purchasing')} />
+            <Button label="New purchase order" icon="plus" onPress={() => router.push('/purchasing/new')} />
           </ScrollView>
         )}
       </SafeAreaView>
