@@ -19,13 +19,13 @@ export type WorkspaceGroup = 'Operations' | 'Business' | 'Administration';
 export const WORKSPACE_GROUPS: WorkspaceGroup[] = ['Operations', 'Business', 'Administration'];
 
 export const WORKSPACES: Workspace[] = [
-  { key: 'sales', label: 'Sales & Customers', icon: 'users', group: 'Operations', route: null },
+  { key: 'sales', label: 'Sales & Customers', icon: 'users', group: 'Operations', route: '/sales' },
   { key: 'purchasing', label: 'Purchasing', icon: 'shopping-cart', group: 'Operations', route: '/purchasing' },
   { key: 'inventory', label: 'Inventory', icon: 'box', group: 'Operations', route: '/inventory' },
   { key: 'warehouse', label: 'Warehouse', icon: 'home', group: 'Operations', route: '/receiving' },
-  { key: 'routes', label: 'Routes & Delivery', icon: 'truck', group: 'Operations', route: null },
+  { key: 'routes', label: 'Routes & Delivery', icon: 'truck', group: 'Operations', route: '/routes' },
   { key: 'finance', label: 'Finance', icon: 'bar-chart-2', group: 'Business', route: null },
-  { key: 'reports', label: 'Reports & Activity', icon: 'file-text', group: 'Business', route: null },
+  { key: 'reports', label: 'Reports & Activity', icon: 'file-text', group: 'Business', route: '/(app)/(tabs)/activity' },
   { key: 'data', label: 'Data & Integrations', icon: 'share-2', group: 'Business', route: null },
   { key: 'settings', label: 'Company settings', icon: 'settings', group: 'Administration', route: null },
 ];

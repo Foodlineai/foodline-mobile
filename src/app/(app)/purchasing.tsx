@@ -1,78 +1,125 @@
 import { useQuery } from '@tanstack/react-query';
-import React, { useState } from 'react';
-import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import React from 'react';
+import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { EmptyState, ErrorState, Loading, Screen } from '@/components/ui';
-import { useCompanyId } from '@/features/auth/auth-context';
-import { api, type PurchaseOrder } from '@/lib/api';
+import { AppHeader, initialsFrom } from '@/components/app-header';
+import {
+  AlertCard,
+  Button,
+  EmptyState,
+  ErrorState,
+  Group,
+  ListRow,
+  Loading,
+  MiniStat,
+  Screen,
+  SeeAllHeader,
+  StaleBanner,
+  StatusPill,
+} from '@/components/ui';
+import { useAuth, useCompanyId } from '@/features/auth/auth-context';
+import { api } from '@/lib/api';
 
-const STATUS_TONE: Record<PurchaseOrder['status'], string> = {
-  draft: 'bg-surface text-ink-muted',
-  sent: 'bg-brand-tint text-brand',
-  confirmed: 'bg-brand-tint text-brand',
-  partial: 'bg-warn-tint text-warn',
-  received: 'bg-good-tint text-good',
-  cancelled: 'bg-danger-tint text-danger',
-};
-
-export default function Orders() {
-  const [showAll, setShowAll] = useState(false);
+/** Mockup 03 — Purchasing Employee. */
+export default function Purchasing() {
+  const { company } = useAuth();
   const companyId = useCompanyId();
-  const orders = useQuery({
-    queryKey: ['purchase-orders', companyId, showAll],
-    queryFn: () => api.purchaseOrders.list(companyId, { openOnly: !showAll }),
+  const summary = useQuery({
+    queryKey: ['purchasing', 'summary', companyId],
+    queryFn: () => api.purchaseOrders.summary(companyId),
   });
 
   return (
     <Screen>
       <SafeAreaView className="flex-1" edges={['top']}>
-        <View className="gap-3 px-5 pb-3 pt-2">
-          <Text className="text-2xl font-bold text-ink">Purchasing</Text>
-          <Pressable
-            accessibilityRole="switch"
-            accessibilityState={{ checked: showAll }}
-            onPress={() => setShowAll((v) => !v)}
-            className={`self-start rounded-full px-3 py-1.5 ${showAll ? 'bg-brand' : 'bg-surface-card border border-surface-line'}`}
-          >
-            <Text className={`text-xs font-semibold ${showAll ? 'text-white' : 'text-ink-muted'}`}>
-              {showAll ? 'Showing all orders' : 'Open orders only'}
-            </Text>
-          </Pressable>
-        </View>
+        <AppHeader context="Purchasing" initials={initialsFrom(company?.name)} />
 
-        {orders.isPending ? (
-          <Loading label="Loading purchase orders" />
-        ) : orders.isError ? (
-          <ErrorState message={(orders.error as Error).message} onRetry={() => orders.refetch()} />
+        {summary.isPending ? (
+          <Loading label="Loading purchasing" />
+        ) : summary.isLoadingError ? (
+          <ErrorState message={(summary.error as Error).message} onRetry={() => summary.refetch()} />
         ) : (
-          <FlatList
-            data={orders.data}
-            keyExtractor={(o) => o.id}
-            contentContainerClassName="gap-3 px-5 pb-10"
-            refreshControl={<RefreshControl refreshing={orders.isRefetching} onRefresh={() => orders.refetch()} />}
-            ListEmptyComponent={<EmptyState title="No purchase orders" hint="Open orders will appear here." />}
-            renderItem={({ item }) => (
-              <View className="rounded-2xl border border-surface-line bg-surface-card p-4">
-                <View className="flex-row items-center justify-between">
-                  <Text className="text-base font-semibold text-ink">{item.number}</Text>
-                  <View className={`rounded-full px-2.5 py-1 ${STATUS_TONE[item.status]}`}>
-                    <Text className={`text-xs font-semibold uppercase ${STATUS_TONE[item.status]}`}>{item.status}</Text>
-                  </View>
-                </View>
-                <Text className="mt-1 text-sm text-ink-muted">{item.vendorName}</Text>
-                <View className="mt-3 flex-row justify-between">
-                  <Text className="text-xs text-ink-muted">
-                    {item.lineCount} line{item.lineCount === 1 ? '' : 's'}
-                    {item.expectedAt ? ` · due ${item.expectedAt}` : ''}
-                  </Text>
-                  <Text className="text-sm font-semibold text-ink">
-                    {item.total === null ? '—' : `$${item.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
-                  </Text>
-                </View>
+          <ScrollView
+            contentContainerClassName="gap-6 px-5 pb-10 pt-3"
+            refreshControl={<RefreshControl refreshing={summary.isRefetching} onRefresh={() => summary.refetch()} />}
+          >
+            {summary.isRefetchError ? <StaleBanner updatedAt={summary.dataUpdatedAt} /> : null}
+            <Text className="text-3xl font-bold text-ink">Buying today</Text>
+
+            <View className="flex-row gap-3">
+              <MiniStat icon="file-text" value={String(summary.data.approvalCount)} label="approvals" />
+              <MiniStat
+                icon="alert-triangle"
+                tone="danger"
+                value={String(summary.data.supplyIssueCount)}
+                label="supply issues"
+              />
+            </View>
+
+            {summary.data.topIssue ? (
+              <View className="gap-3">
+                <SeeAllHeader title="Needs action" />
+                <AlertCard
+                  title={summary.data.topIssue.productName}
+                  lines={[
+                    `${summary.data.topIssue.ordersAffected} customer orders affected`,
+                    `Need ${summary.data.topIssue.neededQuantity} ${summary.data.topIssue.uom} · ${summary.data.topIssue.incomingQuantity} incoming`,
+                  ]}
+                  action={{ label: 'Review purchase need', onPress: () => router.push('/(app)/routine/po-2091') }}
+                />
               </View>
-            )}
-          />
+            ) : null}
+
+            <View className="gap-3">
+              <SeeAllHeader title="Awaiting review" onSeeAll={() => router.push('/tools/purchasing')} />
+              {summary.data.awaitingReview.length === 0 ? (
+                <EmptyState title="Nothing awaiting review" />
+              ) : (
+                <Group>
+                  {summary.data.awaitingReview.map((po) => (
+                    <ListRow
+                      key={po.id}
+                      icon="file-text"
+                      title={`${po.number} · ${po.vendorName}`}
+                      subtitle={po.expectedAt ? `Due ${po.expectedAt}` : undefined}
+                      trailing={
+                        po.total === null ? undefined : (
+                          <Text className="text-base font-bold text-ink">
+                            ${po.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                          </Text>
+                        )
+                      }
+                      onPress={() => router.push('/tools/purchasing')}
+                    />
+                  ))}
+                </Group>
+              )}
+            </View>
+
+            <View className="gap-3">
+              <SeeAllHeader title="Incoming today" onSeeAll={() => router.push('/receiving')} />
+              {summary.data.incomingToday.length === 0 ? (
+                <EmptyState title="Nothing due today" />
+              ) : (
+                <Group>
+                  {summary.data.incomingToday.map((po) => (
+                    <ListRow
+                      key={po.id}
+                      icon="truck"
+                      title={`${po.number} · ${po.vendorName}`}
+                      subtitle={po.expectedAt ? `Expected ${po.expectedAt}` : undefined}
+                      trailing={<StatusPill status="open" label="In transit" />}
+                      onPress={() => router.push('/receiving')}
+                    />
+                  ))}
+                </Group>
+              )}
+            </View>
+
+            <Button label="New purchase order" icon="plus" onPress={() => router.push('/tools/purchasing')} />
+          </ScrollView>
         )}
       </SafeAreaView>
     </Screen>

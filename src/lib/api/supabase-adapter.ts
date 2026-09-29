@@ -4,14 +4,24 @@ import type {
   ActionItem,
   ActivityLine,
   Company,
+  Customer,
+  DeliveryRoute,
+  DeliveryStop,
+  DockReceipt,
   HomeSummary,
   HubMetric,
   Item,
   PurchaseOrder,
+  PurchasingSummary,
   ReceivingTask,
+  ReceivingWarehouse,
+  SalesOrder,
+  SalesSummary,
   ScannerSession,
   Session,
+  ShipmentLine,
   StockStatus,
+  StopDetail,
   UUID,
 } from './types';
 import * as workos from '@/features/auth/workos';
@@ -111,6 +121,66 @@ function toReceivingTask(r: Row): ReceivingTask {
     tracksExpiry: r.track_expiry === true,
     catchWeight: r.catch_weight === true,
     temperatureRequired: r.temperature_required === true,
+  };
+}
+
+
+function toWarehouse(r: Row): ReceivingWarehouse {
+  return {
+    id: str(r.id ?? r.warehouse_id),
+    code: str(r.code ?? r.warehouse_code),
+    name: str(r.name ?? r.warehouse_name),
+    receivingBinId: (r.receiving_bin_id as string | null) ?? null,
+  };
+}
+
+function toDockReceipt(r: Row): DockReceipt {
+  return {
+    goodsReceiptId: str(r.goods_receipt_id ?? r.id),
+    documentNumber: str(r.document_number ?? r.goods_receipt_number ?? r.receipt_document_number),
+    warehouseId: str(r.warehouse_id),
+    vendorName: str(r.vendor_name),
+    purchaseOrderNumber: (r.purchase_order_number as string | null) ?? null,
+    status: (r.status as DockReceipt['status']) ?? 'open',
+    rowVersion: num(r.row_version ?? r.goods_receipt_row_version ?? r.receipt_row_version, 1),
+    openLineCount: numOrNull(r.open_line_count ?? r.remaining_line_count),
+    arrivedAt: (r.arrived_at as string | null) ?? null,
+  };
+}
+
+
+function toSalesOrder(r: Row): SalesOrder {
+  return {
+    id: str(r.id ?? r.sales_order_id),
+    number: str(r.document_number ?? r.number ?? r.order_number),
+    customerId: str(r.customer_id),
+    customerName: str(r.customer_name),
+    state: (r.state as SalesOrder['state']) ?? (r.status as SalesOrder['state']) ?? 'confirmed',
+    attention: (r.attention as string | null) ?? (r.attention_reason as string | null) ?? null,
+    total: numOrNull(r.total ?? r.total_amount),
+    promisedFor: (r.promised_for as string | null) ?? (r.promised_at as string | null) ?? null,
+  };
+}
+
+function toCustomer(r: Row): Customer {
+  return {
+    id: str(r.id ?? r.customer_id),
+    name: str(r.name ?? r.customer_name),
+    subtitle: (r.subtitle as string | null) ?? (r.city as string | null) ?? null,
+  };
+}
+
+function toStop(r: Row): DeliveryStop {
+  return {
+    id: str(r.id ?? r.stop_id),
+    sequence: num(r.sequence ?? r.stop_number ?? r.position),
+    customerName: str(r.customer_name ?? r.name),
+    address: str(r.address ?? r.address_line),
+    windowLabel: (r.window_label as string | null) ?? null,
+    note: (r.note as string | null) ?? (r.instructions as string | null) ?? null,
+    state: (r.state as DeliveryStop['state']) ?? (r.status as DeliveryStop['state']) ?? 'pending',
+    phone: (r.phone as string | null) ?? null,
+    rowVersion: num(r.row_version ?? r.stop_row_version, 1),
   };
 }
 
@@ -246,9 +316,119 @@ export const supabaseApi: FoodlineApi = {
         ? rows
         : rows.filter((o) => o.status !== 'received' && o.status !== 'cancelled');
     },
+
+    async summary(companyId): Promise<PurchasingSummary> {
+      const payload = (await call(companyId, 'purchase_order_directory_snapshot', {
+        p_company_id: companyId,
+      })) as Row;
+      const rows = asRows(payload, 'purchaseOrders', 'purchase_orders', 'rows').map(toPurchaseOrder);
+      const issue = (payload.top_supply_issue ?? payload.topIssue) as Row | undefined;
+      return {
+        approvalCount: num(payload.approval_count, rows.filter((o) => o.status === 'draft').length),
+        supplyIssueCount: num(payload.supply_issue_count),
+        topIssue: issue
+          ? {
+              productName: str(issue.product_name),
+              ordersAffected: num(issue.orders_affected),
+              neededQuantity: num(issue.needed_quantity),
+              incomingQuantity: num(issue.incoming_quantity),
+              uom: str(issue.uom_code, 'cases'),
+            }
+          : null,
+        awaitingReview: rows.filter((o) => o.status === 'draft').slice(0, 5),
+        incomingToday: rows.filter((o) => o.status === 'sent' || o.status === 'confirmed').slice(0, 5),
+      };
+    },
+  },
+
+  sales: {
+    async summary(companyId): Promise<SalesSummary> {
+      const payload = (await call(companyId, 'get_current_sales_orders_workspace')) as Row;
+      const orders = asRows(payload, 'orders', 'sales_orders', 'rows').map(toSalesOrder);
+      const ai = payload.ai_insight ?? payload.aiInsight;
+      return {
+        ordersNeedingAttention: orders.filter((o) => o.attention !== null || o.state === 'short').slice(0, 8),
+        customers: asRows(payload.customers).map(toCustomer).slice(0, 8),
+        aiInsight:
+          ai && typeof ai === 'object'
+            ? {
+                body: str((ai as Row).body ?? (ai as Row).summary),
+                actionLabel: str((ai as Row).action_label ?? (ai as Row).actionLabel, 'Review order'),
+              }
+            : null,
+      };
+    },
+    async customers(companyId) {
+      const payload = (await call(companyId, 'get_current_sales_orders_workspace')) as Row;
+      return asRows(payload.customers, 'rows').map(toCustomer);
+    },
+  },
+
+  routes: {
+    async today(companyId): Promise<DeliveryRoute | null> {
+      const payload = (await call(companyId, 'get_current_delivery_route_workspace')) as Row;
+      const route = (payload.route ?? payload) as Row;
+      const stops = asRows(route.stops ?? payload.stops).map(toStop);
+      if (stops.length === 0 && !route.id) return null;
+      return {
+        id: str(route.id ?? route.route_id),
+        code: str(route.code ?? route.route_code),
+        vehicleLabel: (route.vehicle_label as string | null) ?? (route.vehicle_code as string | null) ?? null,
+        stopsTotal: num(route.stops_total, stops.length),
+        stopsComplete: num(route.stops_complete, stops.filter((s2) => s2.state === 'complete').length),
+        stops,
+      };
+    },
+    async stop(companyId, stopId): Promise<StopDetail | null> {
+      const payload = (await call(companyId, 'get_current_delivery_stop_detail', { p_stop_id: stopId })) as Row;
+      const raw = (payload.stop ?? payload) as Row;
+      if (!raw || (!raw.id && !raw.stop_id)) return null;
+      return {
+        stop: toStop(raw),
+        lines: asRows(payload.lines ?? payload.shipment_lines).map(
+          (l): ShipmentLine => ({
+            id: str(l.id ?? l.line_id),
+            productName: str(l.product_name ?? l.name),
+            quantityLabel: str(l.quantity_label) || `${num(l.quantity)} ${str(l.uom_code, 'ea')}`,
+            state: str(l.state ?? l.status, 'To confirm'),
+          })
+        ),
+      };
+    },
+    async recordProofOfDelivery(companyId, input) {
+      // `p_proof` is opaque JSON — the key names below are unconfirmed against the
+      // ERP's own RPC body (see contracts/design.md: "confirm with Kartikeya, then
+      // tighten"). If this errors with an unexpected-shape message from Postgres,
+      // that is the signal the keys need correcting, not a reason to drop the
+      // expected row version — a dropped connection mid-submit must never record
+      // a delivery twice or overwrite a newer stop state.
+      await call(companyId, 'record_current_proof_of_delivery_exact', {
+        p_command_key: input.idempotencyKey,
+        p_proof: {
+          stop_id: input.stopId,
+          expected_row_version: input.stopRowVersion,
+          recipient_name: input.recipientName,
+          signature_captured: input.signatureCaptured,
+          photo_captured: input.photoCaptured,
+          client_occurred_at: new Date().toISOString(),
+        },
+      });
+    },
   },
 
   receiving: {
+    async warehouses(companyId) {
+      const payload = await call(companyId, 'list_receiving_location_warehouses');
+      return asRows(payload, 'warehouses', 'rows').map(toWarehouse);
+    },
+
+    async dock(companyId, warehouseId) {
+      const payload = await call(companyId, 'get_governed_receiving_dock');
+      const rows = asRows(payload, 'receipts', 'goods_receipts', 'rows').map(toDockReceipt);
+      const open = rows.filter((r) => r.status !== 'posted');
+      return warehouseId ? open.filter((r) => r.warehouseId === warehouseId) : open;
+    },
+
     async startSession(companyId, warehouseId, deviceId) {
       const payload = (await call(companyId, 'start_scanner_session', {
         p_warehouse_id: warehouseId,

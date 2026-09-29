@@ -1,10 +1,11 @@
+import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader, initialsFrom } from '@/components/app-header';
-import { Button, EmptyState, Group, GroupLabel, ListRow, Screen } from '@/components/ui';
+import { Button, COLORS, EmptyState, Group, GroupLabel, ListRow, Screen } from '@/components/ui';
 import { useAuth } from '@/features/auth/auth-context';
 import { WORKSPACES, WORKSPACE_GROUPS } from '@/features/workspaces/catalog';
 
@@ -31,6 +32,7 @@ export default function More() {
           <Text className="text-3xl font-bold text-ink">All workspaces</Text>
 
           <View className="flex-row items-center gap-2 rounded-2xl border border-surface-line bg-surface-card px-4">
+            <Feather name="search" size={18} color={COLORS.inkFaint} />
             <TextInput
               className="h-12 flex-1 text-base text-ink"
               placeholder="Find a module or setting"

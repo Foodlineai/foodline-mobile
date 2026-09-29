@@ -1,10 +1,24 @@
 import { useQuery } from '@tanstack/react-query';
+import { router } from 'expo-router';
 import React, { useDeferredValue, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
+import { RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { EmptyState, ErrorState, Loading, Screen, StatusPill } from '@/components/ui';
-import { useCompanyId } from '@/features/auth/auth-context';
+import { AppHeader, initialsFrom } from '@/components/app-header';
+import {
+  Button,
+  EmptyState,
+  ErrorState,
+  Group,
+  ListRow,
+  Loading,
+  NoticeCard,
+  Screen as ScreenRoot,
+  SeeAllHeader,
+  StaleBanner,
+  StatusPill,
+} from '@/components/ui';
+import { useAuth, useCompanyId } from '@/features/auth/auth-context';
 import { api, type Item } from '@/lib/api';
 
 const STATUS_LABEL: Record<Item['status'], string> = {
@@ -14,92 +28,115 @@ const STATUS_LABEL: Record<Item['status'], string> = {
   over: 'Overstock',
 };
 
-export default function Items() {
+/**
+ * Mockup 04 / prototype `Items.html` (screen 09) — stock work first, browsing
+ * second. Retoned to a compact list per the prototype, EXCEPT the pack-size
+ * column and Case/Catch-weight tag it draws: `contracts/screen-rpc-map.md`
+ * itself marks those fields unconfirmed against the live payload, and `Item`
+ * doesn't carry them. Parsing pack size out of `item.name` would be a guess
+ * dressed up as a feature — left as the on-hand/status line instead, same
+ * data as before, until the RPC shape is confirmed.
+ */
+export default function Inventory() {
+  const { company } = useAuth();
+  const companyId = useCompanyId();
   const [search, setSearch] = useState('');
   const [belowParOnly, setBelowParOnly] = useState(false);
-  const deferredSearch = useDeferredValue(search);
-  const companyId = useCompanyId();
+  const deferred = useDeferredValue(search);
 
   const items = useQuery({
-    queryKey: ['items', companyId, deferredSearch, belowParOnly],
-    queryFn: () => api.items.list(companyId, { search: deferredSearch, onlyBelowPar: belowParOnly }),
+    queryKey: ['items', companyId, deferred, belowParOnly],
+    queryFn: () => api.items.list(companyId, { search: deferred, onlyBelowPar: belowParOnly }),
   });
 
-  return (
-    <Screen>
-      <SafeAreaView className="flex-1" edges={['top']}>
-        <View className="gap-3 px-5 pb-3 pt-2">
-          <Text className="text-2xl font-bold text-ink">Inventory</Text>
-          <TextInput
-            className="h-11 rounded-xl border border-surface-line bg-surface-card px-4 text-base text-ink"
-            placeholder="Search name or SKU"
-            placeholderTextColor="#9CA3AF"
-            autoCapitalize="none"
-            value={search}
-            onChangeText={setSearch}
-          />
-          <Pressable
-            accessibilityRole="switch"
-            accessibilityState={{ checked: belowParOnly }}
-            onPress={() => setBelowParOnly((v) => !v)}
-            className={`self-start rounded-full px-3 py-1.5 ${belowParOnly ? 'bg-brand' : 'bg-surface-card border border-surface-line'}`}
-          >
-            <Text className={`text-xs font-semibold ${belowParOnly ? 'text-white' : 'text-ink-muted'}`}>
-              Below par only
-            </Text>
-          </Pressable>
-        </View>
+  const lowCount = (items.data ?? []).filter((i) => i.status === 'low' || i.status === 'out').length;
 
-        {items.isPending ? (
-          <Loading label="Loading inventory" />
-        ) : items.isError ? (
-          <ErrorState message={(items.error as Error).message} onRetry={() => items.refetch()} />
-        ) : (
-          <FlatList
-            data={items.data}
-            keyExtractor={(i) => i.id}
-            contentContainerClassName="gap-3 px-5 pb-10"
-            refreshControl={<RefreshControl refreshing={items.isRefetching} onRefresh={() => items.refetch()} />}
-            ListEmptyComponent={<EmptyState title="No items match" hint="Try a different search or clear the filter." />}
-            renderItem={({ item }) => <ItemRow item={item} />}
-          />
-        )}
+  return (
+    <ScreenRoot>
+      <SafeAreaView className="flex-1" edges={['top']}>
+        <AppHeader
+          context={company ? `Inventory · ${company.name}` : 'Inventory'}
+          initials={initialsFrom(company?.name)}
+        />
+
+        <ScrollView
+          contentContainerClassName="gap-5 px-5 pb-10 pt-3"
+          keyboardShouldPersistTaps="handled"
+          refreshControl={<RefreshControl refreshing={items.isRefetching} onRefresh={() => items.refetch()} />}
+        >
+          {items.isRefetchError ? <StaleBanner updatedAt={items.dataUpdatedAt} /> : null}
+          <Text className="text-3xl font-bold text-ink">Your stock work</Text>
+
+          <Button label="Scan item or location" icon="maximize" onPress={() => router.push('/receiving')} />
+
+          <View className="rounded-2xl border border-surface-line bg-surface-card px-4">
+            <TextInput
+              className="h-12 text-base text-ink"
+              placeholder="Find item, lot or bin"
+              placeholderTextColor="#8A96AF"
+              autoCapitalize="none"
+              value={search}
+              onChangeText={setSearch}
+            />
+          </View>
+
+          {lowCount > 0 ? (
+            <NoticeCard
+              tone="warn"
+              title={`${lowCount} item${lowCount === 1 ? '' : 's'} below par`}
+              body="Review before the next order guide run."
+              actionLabel={belowParOnly ? 'Show everything' : 'Show only these'}
+              onAction={() => setBelowParOnly((v) => !v)}
+            />
+          ) : null}
+
+          <View className="gap-3">
+            <SeeAllHeader title="Stock" onSeeAll={() => router.push('/tools/inventory')} />
+            {items.isPending ? (
+              <Loading label="Loading inventory" />
+            ) : items.isLoadingError ? (
+              <ErrorState message={(items.error as Error).message} onRetry={() => items.refetch()} />
+            ) : items.data.length === 0 ? (
+              <EmptyState title="No items match" hint="Try a different search or clear the filter." />
+            ) : (
+              <Group>
+                {items.data.map((item) => (
+                  <ItemRow key={item.id} item={item} />
+                ))}
+              </Group>
+            )}
+          </View>
+
+          <Group>
+            <ListRow
+              icon="tool"
+              title="Inventory tools"
+              subtitle="Lots, counts, transfers, traceability"
+              onPress={() => router.push('/tools/inventory')}
+            />
+          </Group>
+        </ScrollView>
       </SafeAreaView>
-    </Screen>
+    </ScreenRoot>
   );
 }
 
+/** One line per item, prototype-density: name + sku/vendor, on-hand + status
+ * trailing. Tapping opens the fuller detail (on hand/on order/par/days cover)
+ * rather than showing all four inline — that's what made the old card busy. */
 function ItemRow({ item }: { item: Item }) {
   return (
-    <View className="rounded-2xl border border-surface-line bg-surface-card p-4">
-      <View className="flex-row items-start justify-between gap-3">
-        <View className="flex-1 gap-0.5">
-          <Text className="text-xs font-medium text-ink-muted">{item.sku}</Text>
-          <Text className="text-base font-semibold text-ink" numberOfLines={2}>
-            {item.name}
+    <ListRow
+      title={item.name}
+      subtitle={[item.sku, item.primaryVendorName].filter(Boolean).join(' · ')}
+      trailing={
+        <View className="items-end gap-1">
+          <Text className="text-base font-bold text-ink">
+            {item.onHand} {item.uom}
           </Text>
-          {item.primaryVendorName ? (
-            <Text className="text-xs text-ink-muted">{item.primaryVendorName}</Text>
-          ) : null}
+          <StatusPill status={item.status} label={STATUS_LABEL[item.status]} />
         </View>
-        <StatusPill status={item.status} label={STATUS_LABEL[item.status]} />
-      </View>
-
-      <View className="mt-3 flex-row gap-6">
-        <Metric label="On hand" value={`${item.onHand} ${item.uom}`} />
-        <Metric label="On order" value={`${item.onOrder}`} />
-        <Metric label="Par" value={item.parLevel === null ? '—' : String(item.parLevel)} />
-        <Metric label="Days cover" value={item.daysCover === null ? '—' : item.daysCover.toFixed(1)} />
-      </View>
-    </View>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <View>
-      <Text className="text-[10px] font-medium uppercase text-ink-muted">{label}</Text>
-      <Text className="text-sm font-semibold text-ink">{value}</Text>
-    </View>
+      }
+    />
   );
 }
