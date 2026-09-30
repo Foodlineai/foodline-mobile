@@ -34,6 +34,9 @@ export const env = {
       ? 'demo'
       : required('EXPO_PUBLIC_WORKOS_CLIENT_ID', process.env.EXPO_PUBLIC_WORKOS_CLIENT_ID);
   },
+  get erpBaseUrl() {
+    return (process.env.EXPO_PUBLIC_ERP_BASE_URL ?? 'https://erp.foodlineai.com').replace(/\/$/, '');
+  },
   /** AuthKit domain, e.g. https://auth.foodlineai.com or the WorkOS-hosted one. */
   get workosAuthDomain() {
     return process.env.EXPO_PUBLIC_WORKOS_AUTH_DOMAIN ?? 'https://api.workos.com';

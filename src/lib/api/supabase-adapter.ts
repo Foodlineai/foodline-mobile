@@ -484,6 +484,36 @@ export const supabaseApi: FoodlineApi = {
   },
 
   routines: {
+    async draft(companyId, purchaseOrderId) {
+      const payload = (await call(companyId, 'get_purchase_order_workspace', {
+        p_purchase_order_id: purchaseOrderId,
+      })) as Row;
+      const order = payload.purchase_order as Row | undefined;
+      if (!order || !order.purchase_order_id) return null;
+      const cycleId = str(order.approval_cycle_id);
+      const requestVersion = str(order.approval_request_row_version);
+      if (!cycleId || !requestVersion || order.approval_status !== 'pending' || order.can_decide !== true)
+        return null;
+      const currency = str(order.currency_code, 'USD');
+      const amount = str(order.approval_amount, '0.00');
+      const lines = asRows(order.lines);
+      return {
+        id: str(order.purchase_order_id),
+        reference: str(order.document_number),
+        vendorName: str(order.vendor_name),
+        formattedTotal: currency === 'USD' ? `$${amount}` : `${currency} ${amount}`,
+        summary: `${lines.length} line${lines.length === 1 ? '' : 's'}${order.warehouse_name ? ` · ${str(order.warehouse_name)}` : ''}`,
+        lines: lines.slice(0, 5).map((line) => ({
+          id: str(line.purchaseOrderVersionLineId ?? line.id),
+          description: str(line.productName),
+          quantityLabel: `${str(line.quantity)} ${str(line.uomCode)}`,
+        })),
+        lineOverflow: Math.max(0, lines.length - 5),
+        rowVersion: str(order.purchase_order_row_version),
+        approvalCycleId: cycleId,
+        approvalRequestRowVersion: requestVersion,
+      };
+    },
     async approveDraftedPurchaseOrder(companyId, input) {
       const draft = input.draft as DraftedPurchaseOrder;
       await call(companyId, 'decide_purchase_order_approval_command', {
@@ -497,6 +527,22 @@ export const supabaseApi: FoodlineApi = {
   },
 
   shipments: {
+    async target(companyId, orderId) {
+      const payload = (await call(companyId, 'get_current_sales_order_detail', {
+        p_sales_order_id: orderId,
+      })) as Row;
+      if (!payload.id || (payload.capabilities as Row | undefined)?.canShip !== true) return null;
+      const customer = (payload.customer ?? {}) as Row;
+      const quantities = (payload.quantities ?? {}) as Row;
+      const lines = asRows(payload.lines);
+      return {
+        orderId: str(payload.id),
+        reference: str(payload.documentNumber),
+        customerName: str(customer.name),
+        summary: `${lines.length} line${lines.length === 1 ? '' : 's'} · ${str(quantities.remainingDemandBase, '0')} base units remaining`,
+        rowVersion: str(payload.rowVersion),
+      };
+    },
     async post(companyId, draft: ShipmentDraft, idempotencyKey: string) {
       // No p_customer_reference on this RPC (confirmed against the live
       // source — that field lives on the invoice command, not shipment).

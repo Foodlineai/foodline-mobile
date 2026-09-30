@@ -17,7 +17,7 @@ import type {
 } from './types';
 import type { CustomerDetail } from '@/features/customers/types';
 import type { DraftedPurchaseOrder } from '@/features/routines/types';
-import type { ShipmentDraft } from '@/features/shipments/types';
+import type { ShipmentDraft, ShipmentTarget } from '@/features/shipments/types';
 
 /**
  * The single seam between the app and the ERP.
@@ -111,6 +111,8 @@ export interface FoodlineApi {
     detail(companyId: UUID, customerId: UUID): Promise<CustomerDetail | null>;
   };
   routines: {
+    /** `get_purchase_order_workspace` — canonical PO, lines and current approval cycle. */
+    draft(companyId: UUID, purchaseOrderId: UUID): Promise<DraftedPurchaseOrder | null>;
     /**
      * `decide_purchase_order_approval_command` with `p_outcome: 'approve'`.
      * Approves the draft's *approval cycle*, not the PO row directly — needs
@@ -123,6 +125,8 @@ export interface FoodlineApi {
     ): Promise<void>;
   };
   shipments: {
+    /** `get_current_sales_order_detail` — canonical row version and shipment eligibility. */
+    target(companyId: UUID, orderId: UUID): Promise<ShipmentTarget | null>;
     /**
      * `ship_current_sales_order`. That RPC has no customer-reference
      * parameter (confirmed against the live source — customer reference

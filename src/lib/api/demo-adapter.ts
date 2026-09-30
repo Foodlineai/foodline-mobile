@@ -19,6 +19,7 @@ import type {
 } from './types';
 import { demoCustomer, demoCustomerNoPattern } from '@/features/customers/fixtures';
 import { demoDraftedPO } from '@/features/routines/fixtures';
+import { demoShipmentTarget } from '@/features/shipments/fixtures';
 
 const COMPANY_ID = '00000000-0000-4000-8000-000000000001';
 
@@ -304,6 +305,10 @@ export const demoApi: FoodlineApi = {
   },
 
   routines: {
+    async draft() {
+      await wait();
+      return demoDraftedPO;
+    },
     async approveDraftedPurchaseOrder(_companyId, input) {
       await wait(220);
       if (usedIdempotencyKeys.has(input.idempotencyKey)) return;
@@ -315,6 +320,10 @@ export const demoApi: FoodlineApi = {
   },
 
   shipments: {
+    async target() {
+      await wait();
+      return demoShipmentTarget;
+    },
     async post(_companyId, _draft, idempotencyKey) {
       await wait(220);
       if (usedIdempotencyKeys.has(idempotencyKey)) return;

@@ -1,8 +1,8 @@
 import { Feather } from '@expo/vector-icons';
 import React from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
-import { ARTWORK } from './artwork';
+import { FoodlineAiOrb } from './foodline-ai-orb';
 import { Avatar, COLORS, ContextPill } from './ui';
 
 /**
@@ -29,7 +29,7 @@ export function AppHeader({
       hitSlop={8}
       className="flex-row items-center gap-2"
     >
-      <Image source={ARTWORK.nova} accessibilityLabel="Nova AI" resizeMode="contain" className="h-8 w-8" />
+      <FoodlineAiOrb size={32} />
       <Text className="text-2xl font-bold text-ink">Foodline AI</Text>
       {onPressOrg ? <Feather name="chevron-down" size={20} color={COLORS.ink} /> : null}
     </Pressable>

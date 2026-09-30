@@ -4,5 +4,5 @@ export const ARTWORK = {
   purchasing: require('../../assets/v4/heroes/purchasing-basket.png'),
   inventory: require('../../assets/v4/heroes/inventory-cold-room.png'),
   routes: require('../../assets/v4/heroes/routes-map.png'),
-  nova: require('../../assets/v4/ai/nova-orb.png'),
+  foodlineAiOrb: require('../../assets/v4/ai/foodline-ai-orb.png'),
 } as const;

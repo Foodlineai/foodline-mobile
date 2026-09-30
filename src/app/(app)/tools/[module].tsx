@@ -7,6 +7,7 @@ import { AppHeader, initialsFrom } from '@/components/app-header';
 import { EmptyState, Group, GroupLabel, ListRow, Screen, ViewBadge } from '@/components/ui';
 import { useAuth } from '@/features/auth/auth-context';
 import { toolsModule } from '@/features/workspaces/tools-catalog';
+import { openErp } from '@/features/workspaces/open-erp';
 
 /** One screen serves every "<Module> tools" directory — they differ only in data. */
 export default function ToolsScreen() {
@@ -43,9 +44,15 @@ export default function ToolsScreen() {
                       key={t.key}
                       icon={t.icon}
                       title={t.label}
-                      subtitle={t.route ? undefined : 'Coming soon'}
+                      subtitle={t.erpPath ? 'Open live ERP' : undefined}
                       trailing={t.badge === 'view' ? <ViewBadge /> : undefined}
-                      onPress={t.route ? () => router.push(t.route as never) : undefined}
+                      onPress={
+                        t.route
+                          ? () => router.push(t.route as never)
+                          : t.erpPath
+                            ? () => void openErp(t.erpPath!)
+                            : undefined
+                      }
                     />
                   ))}
                 </Group>

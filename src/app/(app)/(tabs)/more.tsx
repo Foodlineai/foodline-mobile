@@ -8,6 +8,7 @@ import { AppHeader, initialsFrom } from '@/components/app-header';
 import { Button, COLORS, EmptyState, Group, GroupLabel, ListRow, Screen } from '@/components/ui';
 import { useAuth } from '@/features/auth/auth-context';
 import { WORKSPACES, WORKSPACE_GROUPS } from '@/features/workspaces/catalog';
+import { openErp } from '@/features/workspaces/open-erp';
 
 /** "All workspaces" — the module directory from mockup 01, right-hand phone. */
 export default function More() {
@@ -58,8 +59,14 @@ export default function More() {
                         key={w.key}
                         icon={w.icon}
                         title={w.label}
-                        subtitle={w.route ? undefined : 'Coming soon'}
-                        onPress={w.route ? () => router.push(w.route as never) : undefined}
+                        subtitle={w.erpPath ? 'Open live ERP' : undefined}
+                        onPress={
+                          w.route
+                            ? () => router.push(w.route as never)
+                            : w.erpPath
+                              ? () => void openErp(w.erpPath!)
+                              : undefined
+                        }
                       />
                     ))}
                   </Group>

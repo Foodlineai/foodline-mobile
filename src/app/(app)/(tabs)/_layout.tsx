@@ -1,12 +1,11 @@
 import { Feather } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Image } from 'react-native';
 
-import { ARTWORK } from '@/components/artwork';
+import { FoodlineAiOrb } from '@/components/foodline-ai-orb';
 import { COLORS, type IconName } from '@/components/ui';
 
-/** The five-tab shell keeps Nova AI at the centre of every workflow. */
+/** The five-tab shell keeps Foodline AI at the centre of every workflow. */
 const TABS: { name: string; title: string; icon: IconName }[] = [
   { name: 'index', title: 'Home', icon: 'home' },
   { name: 'my-work', title: 'My Work', icon: 'clipboard' },
@@ -35,12 +34,7 @@ export default function TabsLayout() {
             title: tab.title,
             tabBarIcon: ({ color, size }) =>
               tab.name === 'ai' ? (
-                <Image
-                  source={ARTWORK.nova}
-                  accessibilityLabel="Open Nova AI"
-                  resizeMode="contain"
-                  style={{ width: 54, height: 54, marginTop: -18 }}
-                />
+                <FoodlineAiOrb size={54} style={{ marginTop: -18 }} />
               ) : (
                 <Feather name={tab.icon} size={size ?? 22} color={color} />
               ),
