@@ -120,3 +120,13 @@ export async function getAccessToken(): Promise<string | null> {
 export async function hasStoredSession(): Promise<boolean> {
   return (await load()) !== null;
 }
+
+/**
+ * The raw refresh token, for biometrics.ts to place behind
+ * `requireAuthentication: true` — see that file's own header for why only
+ * the refresh token, never the access token, is protected this way.
+ */
+export async function getRefreshToken(): Promise<string | null> {
+  const tokens = await load();
+  return tokens?.refreshToken ?? null;
+}
