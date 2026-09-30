@@ -1,24 +1,15 @@
-import { Redirect, Stack, usePathname } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import React from 'react';
 import { Alert, View } from 'react-native';
 
-import { COLORS, Loading, Screen } from '@/components/ui';
+import { COLORS } from '@/components/ui';
 import { CopilotBlob } from '@/components/CopilotBlob';
-import { useAuth } from '@/features/auth/auth-context';
 
+/**
+ * No auth check here any more — `AppAuthGate` (root _layout.tsx) only
+ * mounts this at all once there's a session and a company.
+ */
 export default function AppLayout() {
-  const { session, companyId, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <Screen>
-        <Loading label="Starting Foodline" />
-      </Screen>
-    );
-  }
-  if (!session) return <Redirect href="/(auth)/sign-in" />;
-  if (!companyId) return <Redirect href="/(auth)/select-company" />;
-
   return (
     <View style={{ flex: 1 }}>
       <Stack
