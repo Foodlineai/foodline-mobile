@@ -188,17 +188,18 @@ function toCustomer(r: Row): Customer {
   };
 }
 
+/** `r` is one entry of `get_current_delivery_route_workspace`'s `routes[].stops[]` — confirmed camelCase. */
 function toStop(r: Row): DeliveryStop {
+  const windowStart = str(r.deliveryWindowStart);
+  const windowEnd = str(r.deliveryWindowEnd);
   return {
-    id: str(r.id ?? r.stop_id),
-    sequence: num(r.sequence ?? r.stop_number ?? r.position),
-    customerName: str(r.customer_name ?? r.name),
-    address: str(r.address ?? r.address_line),
-    windowLabel: (r.window_label as string | null) ?? null,
-    note: (r.note as string | null) ?? (r.instructions as string | null) ?? null,
-    state: (r.state as DeliveryStop['state']) ?? (r.status as DeliveryStop['state']) ?? 'pending',
-    phone: (r.phone as string | null) ?? null,
-    rowVersion: num(r.row_version ?? r.stop_row_version, 1),
+    id: str(r.id),
+    sequence: num(r.sequence),
+    customerName: str(r.customerName),
+    address: str(r.address),
+    windowLabel: windowStart && windowEnd ? `${windowStart}–${windowEnd}` : null,
+    state: (r.status as DeliveryStop['state']) ?? 'planned',
+    rowVersion: num(r.rowVersion, 1),
   };
 }
 
@@ -418,51 +419,85 @@ export const supabaseApi: FoodlineApi = {
 
   routes: {
     async today(companyId): Promise<DeliveryRoute | null> {
+      // `get_current_delivery_route_workspace` returns every active route
+      // org-wide (confirmed — it wraps `get_unfiltered_current_delivery_
+      // route_workspace`, literally unfiltered by driver), not "my route."
+      // Until a driver-scoped RPC is confirmed, this picks the route most
+      // relevant to a driver opening the app: the one in progress, else the
+      // next one ready to dispatch, else the first route at all.
       const payload = (await call(companyId, 'get_current_delivery_route_workspace')) as Row;
-      const route = (payload.route ?? payload) as Row;
-      const stops = asRows(route.stops ?? payload.stops).map(toStop);
-      if (stops.length === 0 && !route.id) return null;
+      const routes = asRows(payload, 'routes');
+      const route =
+        routes.find((r) => r.status === 'in_progress') ?? routes.find((r) => r.status === 'ready') ?? routes[0];
+      if (!route) return null;
+      const stops = asRows(route.stops).map(toStop);
+      const vehicle = route.vehicle as Row | null | undefined;
       return {
-        id: str(route.id ?? route.route_id),
-        code: str(route.code ?? route.route_code),
-        vehicleLabel: (route.vehicle_label as string | null) ?? (route.vehicle_code as string | null) ?? null,
-        stopsTotal: num(route.stops_total, stops.length),
-        stopsComplete: num(route.stops_complete, stops.filter((s2) => s2.state === 'complete').length),
+        id: str(route.id),
+        code: str(route.documentNumber),
+        vehicleLabel: vehicle ? str(vehicle.name) || null : null,
+        stopsTotal: num(route.stopCount, stops.length),
+        stopsComplete: num(route.completedStopCount, stops.filter((s2) => s2.state === 'completed').length),
         stops,
       };
     },
     async stop(companyId, stopId): Promise<StopDetail | null> {
       const payload = (await call(companyId, 'get_current_delivery_stop_detail', { p_stop_id: stopId })) as Row;
-      const raw = (payload.stop ?? payload) as Row;
-      if (!raw || (!raw.id && !raw.stop_id)) return null;
-      return {
-        stop: toStop(raw),
-        lines: asRows(payload.lines ?? payload.shipment_lines).map(
+      if (!payload || !payload.stopId) return null;
+      // Confirmed absent from this RPC, not guessed: no sequence, address or
+      // delivery window on the detail payload — only the route-list rows
+      // carry those (`toStop` above). The detail screen doesn't render them.
+      const stop: DeliveryStop = {
+        id: str(payload.stopId),
+        sequence: 0,
+        customerName: str(payload.stopName),
+        address: '',
+        windowLabel: null,
+        state: (payload.stopStatus as DeliveryStop['state']) ?? 'planned',
+        rowVersion: num(payload.stopRowVersion, 1),
+      };
+      const lines: ShipmentLine[] = asRows(payload.shipments).flatMap((shipment) =>
+        asRows(shipment.lines).map(
           (l): ShipmentLine => ({
-            id: str(l.id ?? l.line_id),
-            productName: str(l.product_name ?? l.name),
-            quantityLabel: str(l.quantity_label) || `${num(l.quantity)} ${str(l.uom_code, 'ea')}`,
-            state: str(l.state ?? l.status, 'To confirm'),
+            id: str(l.shipmentLineId),
+            productName: str(l.productName, 'Unknown item'),
+            quantity: num(l.quantity),
+            baseQuantity: num(l.baseQuantity),
           })
-        ),
+        )
+      );
+      return {
+        stop,
+        routeId: str(payload.routeId),
+        routeRowVersion: num(payload.routeRowVersion, 1),
+        lines,
       };
     },
+    async arriveAtStop(companyId, input) {
+      await call(companyId, 'transition_current_delivery_stop_exact', {
+        p_command_key: input.idempotencyKey,
+        p_stop_id: input.stopId,
+        p_expected_row_version: input.expectedRowVersion,
+        p_action: 'arrive',
+      });
+    },
     async recordProofOfDelivery(companyId, input) {
-      // `p_proof` is opaque JSON — the key names below are unconfirmed against the
-      // ERP's own RPC body (see contracts/design.md: "confirm with Kartikeya, then
-      // tighten"). If this errors with an unexpected-shape message from Postgres,
-      // that is the signal the keys need correcting, not a reason to drop the
-      // expected row version — a dropped connection mid-submit must never record
-      // a delivery twice or overwrite a newer stop state.
       await call(companyId, 'record_current_proof_of_delivery_exact', {
         p_command_key: input.idempotencyKey,
         p_proof: {
-          stop_id: input.stopId,
-          expected_row_version: input.stopRowVersion,
-          recipient_name: input.recipientName,
-          signature_captured: input.signatureCaptured,
-          photo_captured: input.photoCaptured,
-          client_occurred_at: new Date().toISOString(),
+          stopId: input.stopId,
+          expectedStopVersion: input.expectedStopVersion,
+          expectedRouteVersion: input.expectedRouteVersion,
+          recipientName: input.recipientName,
+          signatureAttachmentId: null,
+          photoAttachmentId: null,
+          reason: input.reason,
+          lines: input.lines.map((l) => ({
+            shipmentLineId: l.shipmentLineId,
+            deliveredBaseQuantity: l.deliveredBaseQuantity,
+            refusedBaseQuantity: l.refusedBaseQuantity,
+            shortBaseQuantity: l.shortBaseQuantity,
+          })),
         },
       });
     },

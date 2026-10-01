@@ -149,23 +149,26 @@ const PURCHASING: PurchasingSummary = {
 
 const ROUTE: DeliveryRoute = {
   id: 'rt1',
-  code: 'Route A-12',
+  code: 'RTE-000000012',
   vehicleLabel: 'Truck 04',
-  stopsTotal: 8,
+  stopsTotal: 4,
   stopsComplete: 2,
   stops: [
-    { id: 's1', sequence: 1, customerName: 'Morning Bakery', address: '12 Auburn Ave, Atlanta', windowLabel: '7:00-7:30 AM', note: null, state: 'complete', phone: '+1 404 555 0111', rowVersion: 1 },
-    { id: 's2', sequence: 2, customerName: 'Hillside Deli', address: '88 Edgewood Ave, Atlanta', windowLabel: '8:15-8:45 AM', note: null, state: 'complete', phone: '+1 404 555 0112', rowVersion: 1 },
-    { id: 's3', sequence: 3, customerName: 'Cedar Grove Catering', address: '180 Peachtree St, Atlanta', windowLabel: '10:00-10:30 AM', note: 'Use rear loading entrance', state: 'arrived', phone: '+1 404 555 0113', rowVersion: 1 },
-    { id: 's4', sequence: 4, customerName: 'Riverside Market', address: '420 Marietta St, Atlanta', windowLabel: '11:00-11:30 AM', note: null, state: 'pending', phone: '+1 404 555 0114', rowVersion: 1 },
+    { id: 's1', sequence: 1, customerName: 'Morning Bakery', address: '12 Auburn Ave, Atlanta', windowLabel: '07:00–07:30', state: 'completed', rowVersion: 1 },
+    { id: 's2', sequence: 2, customerName: 'Hillside Deli', address: '88 Edgewood Ave, Atlanta', windowLabel: '08:15–08:45', state: 'completed', rowVersion: 1 },
+    { id: 's3', sequence: 3, customerName: 'Cedar Grove Catering', address: '180 Peachtree St, Atlanta', windowLabel: '10:00–10:30', state: 'arrived', rowVersion: 1 },
+    { id: 's4', sequence: 4, customerName: 'Riverside Market', address: '420 Marietta St, Atlanta', windowLabel: '11:00–11:30', state: 'planned', rowVersion: 1 },
   ],
 };
 
+const STOP_ROUTE_IDS: Record<string, string> = { s1: 'rt1', s2: 'rt1', s3: 'rt1', s4: 'rt1' };
+const STOP_ROUTE_VERSION = 1;
+
 const STOP_LINES: Record<string, StopDetail['lines']> = {
   s3: [
-    { id: 'sl1', productName: 'Roma tomatoes', quantityLabel: '4 cases', state: 'To confirm' },
-    { id: 'sl2', productName: 'Baby spinach', quantityLabel: '2 cases', state: 'To confirm' },
-    { id: 'sl3', productName: 'Whole milk', quantityLabel: '6 cases', state: 'To confirm' },
+    { id: 'sl1', productName: 'Roma tomatoes', quantity: 4, baseQuantity: 4 },
+    { id: 'sl2', productName: 'Baby spinach', quantity: 2, baseQuantity: 2 },
+    { id: 'sl3', productName: 'Whole milk', quantity: 6, baseQuantity: 6 },
   ],
 };
 
@@ -278,20 +281,37 @@ export const demoApi: FoodlineApi = {
       await wait();
       const stop = ROUTE.stops.find((s2) => s2.id === stopId);
       if (!stop) return null;
-      return { stop, lines: STOP_LINES[stopId] ?? [] };
+      return {
+        stop,
+        routeId: STOP_ROUTE_IDS[stopId] ?? ROUTE.id,
+        routeRowVersion: STOP_ROUTE_VERSION,
+        lines: STOP_LINES[stopId] ?? [],
+      };
+    },
+    async arriveAtStop(_companyId, input) {
+      await wait(180);
+      if (usedIdempotencyKeys.has(input.idempotencyKey)) return;
+      const stop = ROUTE.stops.find((s2) => s2.id === input.stopId);
+      if (!stop) throw new Error('Stop not found');
+      if (stop.rowVersion !== input.expectedRowVersion) {
+        throw new Error('This stop changed since you loaded it. Reload and try again.');
+      }
+      usedIdempotencyKeys.add(input.idempotencyKey);
+      stop.rowVersion += 1;
+      stop.state = 'arrived';
     },
     async recordProofOfDelivery(_companyId, input) {
       await wait(220);
       if (usedIdempotencyKeys.has(input.idempotencyKey)) return; // already recorded — same discipline as a live retry
       const stop = ROUTE.stops.find((s2) => s2.id === input.stopId);
       if (!stop) throw new Error('Stop not found');
-      if (stop.rowVersion !== input.stopRowVersion) {
+      if (stop.rowVersion !== input.expectedStopVersion) {
         throw new Error('This stop changed since you loaded it. Reload and try again.');
       }
       usedIdempotencyKeys.add(input.idempotencyKey);
       stop.rowVersion += 1;
-      if (stop.state !== 'complete') {
-        stop.state = 'complete';
+      if (stop.state !== 'completed') {
+        stop.state = 'completed';
         ROUTE.stopsComplete += 1;
       }
     },

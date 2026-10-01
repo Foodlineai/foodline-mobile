@@ -9,18 +9,18 @@ import type { RouteStop, RouteSummary, StopState } from './types';
  */
 
 const STATE_MAP: Record<DeliveryStop['state'], StopState> = {
-  complete: 'delivered',
+  completed: 'delivered',
   arrived: 'arrived',
-  en_route: 'upcoming',
-  pending: 'upcoming',
+  planned: 'upcoming',
+  skipped: 'exception',
   failed: 'exception',
 };
 
 const STATE_NOTE: Record<DeliveryStop['state'], string> = {
-  complete: 'Delivered',
+  completed: 'Delivered',
   arrived: 'Arrived — next to confirm',
-  en_route: 'On the way',
-  pending: 'Not yet started',
+  planned: 'Not yet started',
+  skipped: 'Skipped',
   failed: 'Delivery exception',
 };
 
@@ -29,10 +29,10 @@ function toRouteStop(stop: DeliveryStop): RouteStop {
     id: stop.id,
     sequence: stop.sequence,
     customerName: stop.customerName,
-    // The delivered type wants a status line ("Delivered 8:12 AM · signed");
-    // this app's DeliveryStop.note is arrival instructions ("Use rear
-    // loading entrance"), a different thing. Prefer a real status-shaped
-    // note over instructions when there's no better source for one.
+    // The delivered type wants a status line ("Delivered 8:12 AM · signed").
+    // There's no per-stop arrival-instructions field on the list RPC to
+    // prefer over this — confirmed, it isn't in the payload — so this is
+    // always the status-shaped note.
     note: STATE_NOTE[stop.state],
     window: stop.windowLabel ?? stop.address,
     state: STATE_MAP[stop.state],

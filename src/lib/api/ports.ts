@@ -111,15 +111,34 @@ export interface FoodlineApi {
     today(companyId: UUID): Promise<DeliveryRoute | null>;
     /** `get_current_delivery_stop_detail` */
     stop(companyId: UUID, stopId: UUID): Promise<StopDetail | null>;
-    /** `record_current_proof_of_delivery_exact` — idempotent, optimistic-concurrency guarded. */
+    /**
+     * `transition_current_delivery_stop_exact` with `p_action: 'arrive'`.
+     * Requires the route to be `in_progress` (dispatched) — confirmed
+     * server-side check, surfaces as an ordinary error if it isn't.
+     */
+    arriveAtStop(
+      companyId: UUID,
+      input: { stopId: UUID; expectedRowVersion: number; idempotencyKey: string }
+    ): Promise<void>;
+    /**
+     * `record_current_proof_of_delivery_exact` — confirmed against the live
+     * ERP source 1 Oct. `p_proof` requires a `lines` array (1–1000 entries)
+     * whose delivered + refused + short quantities reconcile exactly to
+     * each shipment line's base quantity; `recipientName` is required when
+     * any quantity is delivered, `reason` when any is refused or short. No
+     * `signatureAttachmentId`/`photoAttachmentId` sent — those require an
+     * uploaded, server-verified evidence record, and no upload path exists
+     * in this app yet. Not inventing one; always sent as `null`.
+     */
     recordProofOfDelivery(
       companyId: UUID,
       input: {
         stopId: UUID;
-        stopRowVersion: number;
+        expectedStopVersion: number;
+        expectedRouteVersion: number;
         recipientName: string | null;
-        signatureCaptured: boolean;
-        photoCaptured: boolean;
+        reason: string | null;
+        lines: { shipmentLineId: UUID; deliveredBaseQuantity: number; refusedBaseQuantity: number; shortBaseQuantity: number }[];
         idempotencyKey: string;
       }
     ): Promise<void>;

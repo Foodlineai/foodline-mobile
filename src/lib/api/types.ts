@@ -204,7 +204,14 @@ export type PurchasingSummary = {
 
 /* ------------------------------------------------------------- routes */
 
-export type StopState = 'pending' | 'en_route' | 'arrived' | 'complete' | 'failed';
+/**
+ * `route_stops.status` is a generated column in the live schema
+ * (`CASE WHEN failed_at ... WHEN skipped_at ... WHEN completed_at ...
+ * WHEN arrived_at ... ELSE 'planned'`) — confirmed against the live ERP
+ * source 1 Oct. There is no `'pending'`, `'en_route'` or `'complete'`; an
+ * earlier version of this type guessed those and was wrong.
+ */
+export type StopState = 'planned' | 'arrived' | 'completed' | 'skipped' | 'failed';
 
 export type DeliveryStop = {
   id: UUID;
@@ -212,14 +219,13 @@ export type DeliveryStop = {
   customerName: string;
   address: string;
   windowLabel: string | null;
-  note: string | null;
   state: StopState;
-  phone: string | null;
   rowVersion: number;
 };
 
 export type DeliveryRoute = {
   id: UUID;
+  /** The route's document number — there is no separate `code` field. */
   code: string;
   vehicleLabel: string | null;
   stopsTotal: number;
@@ -228,13 +234,24 @@ export type DeliveryRoute = {
 };
 
 export type ShipmentLine = {
+  /** `shipmentLineId` — required unchanged on the proof-of-delivery payload. */
   id: UUID;
   productName: string;
-  quantityLabel: string;
-  state: string;
+  /** Order-unit quantity, for display only. */
+  quantity: number;
+  /**
+   * Base-unit quantity — what `deliveredBaseQuantity` +
+   * `refusedBaseQuantity` + `shortBaseQuantity` must reconcile to exactly,
+   * confirmed against `private.record_current_proof_of_delivery`'s own
+   * line-by-line check.
+   */
+  baseQuantity: number;
 };
 
 export type StopDetail = {
   stop: DeliveryStop;
+  /** Needed because proof-of-delivery requires the route's row version too, not just the stop's. */
+  routeId: UUID;
+  routeRowVersion: number;
   lines: ShipmentLine[];
 };
