@@ -18,7 +18,10 @@ import type {
   StopDetail,
 } from './types';
 import { demoCustomer, demoCustomerNoPattern } from '@/features/customers/fixtures';
+import { demoPurchaseOrderDetails } from '@/features/purchasing/order-detail/fixtures';
 import { demoDraftedPO } from '@/features/routines/fixtures';
+import { demoSalesOrderDetails } from '@/features/sales/order-detail/fixtures';
+import { demoVendorDetails } from '@/features/vendors/fixtures';
 
 const COMPANY_ID = '00000000-0000-4000-8000-000000000001';
 
@@ -217,6 +220,10 @@ export const demoApi: FoodlineApi = {
       await wait();
       return PURCHASING;
     },
+    async detail(_companyId, purchaseOrderId) {
+      await wait();
+      return demoPurchaseOrderDetails[purchaseOrderId] ?? null;
+    },
   },
   sales: {
     async summary() {
@@ -226,6 +233,16 @@ export const demoApi: FoodlineApi = {
     async customers() {
       await wait();
       return CUSTOMERS;
+    },
+    async orderDetail(_companyId, salesOrderId) {
+      await wait();
+      return demoSalesOrderDetails[salesOrderId] ?? null;
+    },
+  },
+  vendors: {
+    async detail(_companyId, vendorId) {
+      await wait();
+      return demoVendorDetails[vendorId] ?? null;
     },
   },
 

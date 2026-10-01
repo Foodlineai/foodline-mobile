@@ -16,8 +16,11 @@ import type {
   UUID,
 } from './types';
 import type { CustomerDetail } from '@/features/customers/types';
+import type { PurchaseOrderDetail } from '@/features/purchasing/order-detail/types';
 import type { DraftedPurchaseOrder } from '@/features/routines/types';
+import type { SalesOrderDetail } from '@/features/sales/order-detail/types';
 import type { ShipmentDraft } from '@/features/shipments/types';
+import type { VendorDetail } from '@/features/vendors/types';
 
 /**
  * The single seam between the app and the ERP.
@@ -47,11 +50,24 @@ export interface FoodlineApi {
     list(companyId: UUID, params?: { openOnly?: boolean }): Promise<PurchaseOrder[]>;
     /** Powers the Purchasing module screen (mockup 03). */
     summary(companyId: UUID): Promise<PurchasingSummary>;
+    /**
+     * `get_purchase_order_workspace` — confirmed against the live ERP source
+     * 1 Oct. Requires `purchasing.read`; cost fields (unit cost, totals) come
+     * back null rather than the call failing when `purchasing.cost_read` is
+     * also missing — see `features/purchasing/order-detail/adapter.ts`.
+     */
+    detail(companyId: UUID, purchaseOrderId: UUID): Promise<PurchaseOrderDetail | null>;
   };
   sales: {
     /** `get_current_sales_orders_workspace` — one call for the Sales screen. */
     summary(companyId: UUID): Promise<SalesSummary>;
     customers(companyId: UUID): Promise<Customer[]>;
+    /** `get_current_sales_order_detail` — confirmed against the live ERP source 1 Oct. */
+    orderDetail(companyId: UUID, salesOrderId: UUID): Promise<SalesOrderDetail | null>;
+  };
+  vendors: {
+    /** `vendor_read` — confirmed against the live ERP source 1 Oct. Requires `vendors.read`. */
+    detail(companyId: UUID, vendorId: UUID): Promise<VendorDetail | null>;
   };
   routes: {
     /** `get_current_delivery_route_workspace` — today's assigned route. */

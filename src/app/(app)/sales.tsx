@@ -74,7 +74,7 @@ export default function Sales() {
                       onPress={
                         o.state === 'confirmed' || o.state === 'picking'
                           ? () => router.push(`/(app)/shipment/${o.id}`)
-                          : () => router.push('/tools/sales')
+                          : () => router.push(`/(app)/sales/${o.id}`)
                       }
                     />
                   ))}

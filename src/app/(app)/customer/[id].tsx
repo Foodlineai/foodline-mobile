@@ -50,7 +50,7 @@ export default function CustomerDetail() {
     <CustomerDetailScreen
       customer={customer}
       onBuildOrder={() => router.push(`/(app)/routine/${customer.id}`)}
-      onOpenOrder={() => router.push('/tools/sales')}
+      onOpenOrder={(order) => router.push(`/(app)/sales/${order.id}`)}
     />
   );
 }

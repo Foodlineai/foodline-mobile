@@ -26,8 +26,11 @@ import type {
 } from './types';
 import * as workos from '@/features/auth/workos';
 import { toCustomerDetail } from '@/features/customers/adapter';
+import { toPurchaseOrderDetail } from '@/features/purchasing/order-detail/adapter';
 import type { DraftedPurchaseOrder } from '@/features/routines/types';
+import { toSalesOrderDetail } from '@/features/sales/order-detail/adapter';
 import type { ShipmentDraft } from '@/features/shipments/types';
+import { toVendorDetail } from '@/features/vendors/adapter';
 
 /**
  * Live adapter. Every call is an RPC — there are no direct table reads, because
@@ -353,6 +356,11 @@ export const supabaseApi: FoodlineApi = {
         incomingToday: rows.filter((o) => o.status === 'sent' || o.status === 'confirmed').slice(0, 5),
       };
     },
+
+    async detail(companyId, purchaseOrderId) {
+      const payload = await call(companyId, 'get_purchase_order_workspace', { p_purchase_order_id: purchaseOrderId });
+      return toPurchaseOrderDetail(payload as Row);
+    },
   },
 
   sales: {
@@ -375,6 +383,10 @@ export const supabaseApi: FoodlineApi = {
     async customers(companyId) {
       const payload = (await call(companyId, 'get_current_sales_orders_workspace')) as Row;
       return asRows(payload.customers, 'rows').map(toCustomer);
+    },
+    async orderDetail(companyId, salesOrderId) {
+      const payload = await call(companyId, 'get_current_sales_order_detail', { p_sales_order_id: salesOrderId });
+      return toSalesOrderDetail(payload as Row);
     },
   },
 
@@ -491,6 +503,13 @@ export const supabaseApi: FoodlineApi = {
     async detail(companyId, customerId) {
       const payload = await call(companyId, 'get_current_customer_detail', { p_customer_id: customerId });
       return toCustomerDetail(payload as Row);
+    },
+  },
+
+  vendors: {
+    async detail(companyId, vendorId) {
+      const payload = await call(companyId, 'vendor_read', { p_company_id: companyId, p_vendor_id: vendorId });
+      return toVendorDetail(payload as Row);
     },
   },
 

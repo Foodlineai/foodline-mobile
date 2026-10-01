@@ -1,0 +1,56 @@
+import type { PurchaseOrderDetail } from './types';
+
+export const demoPurchaseOrderDetails: Record<string, PurchaseOrderDetail> = {
+  po1: {
+    id: 'po1',
+    documentNumber: 'PO-4471',
+    status: { label: 'Sent', tone: 'info' },
+    vendor: { id: 'v1', name: 'Valley Greens' },
+    warehouseName: 'Atlanta warehouse',
+    orderDate: '2026-09-20',
+    expectedDeliveryDate: '2026-09-23',
+    notes: null,
+    total: '$2,140.00',
+    lineCount: 2,
+    lines: [
+      { id: 'po1-l1', lineNumber: 1, productName: 'Romaine Hearts, 24ct', productSku: 'PRD-1042', uomCode: 'CS', quantity: '40', unitCost: '$32.50', totalAmount: '$1,300.00' },
+      { id: 'po1-l2', lineNumber: 2, productName: 'Roma Tomatoes 25lb', productSku: 'PRD-1188', uomCode: 'CS', quantity: '20', unitCost: '$42.00', totalAmount: '$840.00' },
+    ],
+    canReadCost: true,
+    rowVersion: '3',
+  },
+  po2: {
+    id: 'po2',
+    documentNumber: 'PO-4468',
+    status: { label: 'Partial', tone: 'warn' },
+    vendor: { id: 'v2', name: 'Southern Poultry Co' },
+    warehouseName: 'Atlanta warehouse',
+    orderDate: '2026-09-19',
+    expectedDeliveryDate: '2026-09-22',
+    notes: 'Call ahead — dock closes at 4pm.',
+    total: '$2,514.00',
+    lineCount: 1,
+    lines: [
+      { id: 'po2-l1', lineNumber: 1, productName: 'Chicken Breast, Boneless 40lb', productSku: 'PRO-0771', uomCode: 'CS', quantity: '24', unitCost: '$104.75', totalAmount: '$2,514.00' },
+    ],
+    canReadCost: true,
+    rowVersion: '2',
+  },
+  po3: {
+    id: 'po3',
+    documentNumber: 'PO-4455',
+    status: { label: 'Received', tone: 'ok' },
+    vendor: { id: 'v3', name: 'Peachtree Dairy' },
+    warehouseName: 'Atlanta warehouse',
+    orderDate: '2026-09-16',
+    expectedDeliveryDate: '2026-09-19',
+    notes: null,
+    total: '$494.40',
+    lineCount: 1,
+    lines: [
+      { id: 'po3-l1', lineNumber: 1, productName: 'Whole Milk, 1gal', productSku: 'DRY-0220', uomCode: 'CS', quantity: '48', unitCost: '$10.30', totalAmount: '$494.40' },
+    ],
+    canReadCost: true,
+    rowVersion: '4',
+  },
+};

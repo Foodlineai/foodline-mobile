@@ -91,7 +91,7 @@ export default function Purchasing() {
                           </Text>
                         )
                       }
-                      onPress={() => router.push('/tools/purchasing')}
+                      onPress={() => router.push(`/(app)/purchasing/${po.id}`)}
                     />
                   ))}
                 </Group>
