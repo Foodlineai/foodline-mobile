@@ -1,0 +1,72 @@
+import type { ItemDetail } from './types';
+
+export const demoItemDetails: Record<string, ItemDetail> = {
+  i1: {
+    id: 'i1',
+    sku: 'PRD-1042',
+    name: 'Romaine Hearts, 24ct',
+    description: 'Field-packed romaine, 24 count per case.',
+    categoryName: 'Produce',
+    brandName: null,
+    baseUomCode: 'CS',
+    trackLots: true,
+    trackExpiry: true,
+    catchWeight: false,
+    canReadInventory: true,
+    locations: [
+      { warehouseId: 'wh-atl', warehouseName: 'Atlanta warehouse', onHand: '18', availableToPromise: '12', reserved: '6', onOrder: '40', reorderStatus: 'below_reorder_point', soonestExpiry: '2026-09-27' },
+    ],
+    lots: [
+      { id: 'lot-1042-a', lotCode: 'L-0917A', expiresOn: '2026-09-27', isShortDated: true, status: 'active', warehouseName: 'Atlanta warehouse', onHand: '10', available: '6' },
+      { id: 'lot-1042-b', lotCode: 'L-0920B', expiresOn: '2026-10-04', isShortDated: false, status: 'active', warehouseName: 'Atlanta warehouse', onHand: '8', available: '6' },
+    ],
+    activity: [
+      { id: 'act-1', action: 'received', occurredAt: '2026-09-23T07:40:00Z' },
+      { id: 'act-2', action: 'updated', occurredAt: '2026-09-20T14:05:00Z' },
+    ],
+    canManage: false,
+    rowVersion: '5',
+  },
+  i3: {
+    id: 'i3',
+    sku: 'PRO-0771',
+    name: 'Chicken Breast, Boneless 40lb',
+    description: null,
+    categoryName: 'Protein',
+    brandName: 'Southern Poultry',
+    baseUomCode: 'CS',
+    trackLots: true,
+    trackExpiry: true,
+    catchWeight: true,
+    canReadInventory: true,
+    locations: [
+      { warehouseId: 'wh-atl', warehouseName: 'Atlanta warehouse', onHand: '0', availableToPromise: '0', reserved: '0', onOrder: '24', reorderStatus: 'out_of_stock', soonestExpiry: null },
+    ],
+    lots: [],
+    activity: [{ id: 'act-3', action: 'shipped', occurredAt: '2026-09-22T16:20:00Z' }],
+    canManage: false,
+    rowVersion: '3',
+  },
+  i6: {
+    id: 'i6',
+    sku: 'PRD-1188',
+    name: 'Roma Tomatoes 25lb',
+    description: null,
+    categoryName: 'Produce',
+    brandName: null,
+    baseUomCode: 'CS',
+    trackLots: true,
+    trackExpiry: true,
+    catchWeight: true,
+    canReadInventory: true,
+    locations: [
+      { warehouseId: 'wh-atl', warehouseName: 'Atlanta warehouse', onHand: '31', availableToPromise: '19', reserved: '12', onOrder: '20', reorderStatus: 'healthy', soonestExpiry: '2026-09-26' },
+    ],
+    lots: [
+      { id: 'lot-1188-a', lotCode: 'L-0915C', expiresOn: '2026-09-26', isShortDated: true, status: 'active', warehouseName: 'Atlanta warehouse', onHand: '31', available: '19' },
+    ],
+    activity: [{ id: 'act-4', action: 'received', occurredAt: '2026-09-23T07:40:00Z' }],
+    canManage: false,
+    rowVersion: '2',
+  },
+};

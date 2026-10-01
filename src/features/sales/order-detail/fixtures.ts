@@ -1,3 +1,4 @@
+import type { SalesOrderFulfillment } from './fulfillment-types';
 import type { SalesOrderDetail } from './types';
 
 export const demoSalesOrderDetails: Record<string, SalesOrderDetail> = {
@@ -12,8 +13,8 @@ export const demoSalesOrderDetails: Record<string, SalesOrderDetail> = {
     requestedDeliveryDate: '2026-09-23',
     total: '$1,840.25',
     lines: [
-      { id: 'so1-l1', lineNumber: 1, itemLabel: 'Romaine Hearts, 24ct', sku: 'PRD-1042', uomCode: 'CS', orderedQuantity: '12', shippedBaseQuantity: '8', unitPrice: '$46.75', totalAmount: '$561.00' },
-      { id: 'so1-l2', lineNumber: 2, itemLabel: 'Chicken Breast, Boneless 40lb', sku: 'PRO-0771', uomCode: 'CS', orderedQuantity: '10', shippedBaseQuantity: '10', unitPrice: '$127.92', totalAmount: '$1,279.25' },
+      { id: 'so1-l1', lineNumber: 1, itemLabel: 'Romaine Hearts, 24ct', sku: 'PRD-1042', uomCode: 'CS', orderedQuantity: '12', shippedBaseQuantity: '8', unitPrice: '$46.75', totalAmount: '$561.00', remainingBaseQuantity: null, backorderedBaseQuantity: null },
+      { id: 'so1-l2', lineNumber: 2, itemLabel: 'Chicken Breast, Boneless 40lb', sku: 'PRO-0771', uomCode: 'CS', orderedQuantity: '10', shippedBaseQuantity: '10', unitPrice: '$127.92', totalAmount: '$1,279.25', remainingBaseQuantity: null, backorderedBaseQuantity: null },
     ],
     rowVersion: '2',
   },
@@ -28,7 +29,7 @@ export const demoSalesOrderDetails: Record<string, SalesOrderDetail> = {
     requestedDeliveryDate: '2026-09-23',
     total: '$964.00',
     lines: [
-      { id: 'so2-l1', lineNumber: 1, itemLabel: 'Whole Milk, 1gal', sku: 'DRY-0220', uomCode: 'CS', orderedQuantity: '24', shippedBaseQuantity: '24', unitPrice: '$40.17', totalAmount: '$964.00' },
+      { id: 'so2-l1', lineNumber: 1, itemLabel: 'Whole Milk, 1gal', sku: 'DRY-0220', uomCode: 'CS', orderedQuantity: '24', shippedBaseQuantity: '24', unitPrice: '$40.17', totalAmount: '$964.00', remainingBaseQuantity: null, backorderedBaseQuantity: null },
     ],
     rowVersion: '3',
   },
@@ -43,8 +44,37 @@ export const demoSalesOrderDetails: Record<string, SalesOrderDetail> = {
     requestedDeliveryDate: '2026-09-22',
     total: '$412.80',
     lines: [
-      { id: 'so3-l1', lineNumber: 1, itemLabel: 'Roma Tomatoes 25lb', sku: 'PRD-1188', uomCode: 'CS', orderedQuantity: '12', shippedBaseQuantity: '12', unitPrice: '$34.40', totalAmount: '$412.80' },
+      { id: 'so3-l1', lineNumber: 1, itemLabel: 'Roma Tomatoes 25lb', sku: 'PRD-1188', uomCode: 'CS', orderedQuantity: '12', shippedBaseQuantity: '12', unitPrice: '$34.40', totalAmount: '$412.80', remainingBaseQuantity: null, backorderedBaseQuantity: null },
     ],
     rowVersion: '1',
+  },
+};
+
+export const demoSalesOrderFulfillments: Record<string, SalesOrderFulfillment> = {
+  so1: {
+    salesOrderId: 'so1',
+    orderRowVersion: '2',
+    lines: [
+      {
+        salesOrderLineId: 'so1-l1',
+        orderedBaseQuantity: '12',
+        shippedBaseQuantity: '8',
+        reservedBaseQuantity: '0',
+        pickedUnshippedBaseQuantity: '0',
+        cancelledBaseQuantity: '0',
+        remainingBaseQuantity: '4',
+        backorderedBaseQuantity: '4',
+      },
+      {
+        salesOrderLineId: 'so1-l2',
+        orderedBaseQuantity: '10',
+        shippedBaseQuantity: '10',
+        reservedBaseQuantity: '0',
+        pickedUnshippedBaseQuantity: '0',
+        cancelledBaseQuantity: '0',
+        remainingBaseQuantity: '0',
+        backorderedBaseQuantity: '0',
+      },
+    ],
   },
 };

@@ -16,9 +16,11 @@ import type {
   UUID,
 } from './types';
 import type { CustomerDetail } from '@/features/customers/types';
+import type { ItemDetail } from '@/features/items/detail/types';
 import type { PurchaseOrderDetail } from '@/features/purchasing/order-detail/types';
 import type { DraftedPurchaseOrder } from '@/features/routines/types';
 import type { SalesOrderDetail } from '@/features/sales/order-detail/types';
+import type { SalesOrderFulfillment } from '@/features/sales/order-detail/fulfillment-types';
 import type { ShipmentDraft } from '@/features/shipments/types';
 import type { VendorDetail } from '@/features/vendors/types';
 
@@ -45,6 +47,12 @@ export interface FoodlineApi {
   };
   items: {
     list(companyId: UUID, params?: { search?: string; onlyBelowPar?: boolean }): Promise<Item[]>;
+    /**
+     * `get_current_product_workspace` — confirmed against the live ERP
+     * source 1 Oct. Requires `catalog.read`; `inventory`/`lots` additionally
+     * need `inventory.read` — see `features/items/detail/adapter.ts`.
+     */
+    detail(companyId: UUID, productId: UUID): Promise<ItemDetail | null>;
   };
   purchaseOrders: {
     list(companyId: UUID, params?: { openOnly?: boolean }): Promise<PurchaseOrder[]>;
@@ -64,6 +72,35 @@ export interface FoodlineApi {
     customers(companyId: UUID): Promise<Customer[]>;
     /** `get_current_sales_order_detail` — confirmed against the live ERP source 1 Oct. */
     orderDetail(companyId: UUID, salesOrderId: UUID): Promise<SalesOrderDetail | null>;
+    /**
+     * `get_current_sales_order_fulfillment` — confirmed against the live ERP
+     * source 1 Oct. Per-line ordered/shipped/reserved/backordered base
+     * quantities plus pick-wave task state; merged into the order detail
+     * screen and the sole data source for `sales-order/[id]/short.tsx`.
+     */
+    orderFulfillment(companyId: UUID, salesOrderId: UUID): Promise<SalesOrderFulfillment | null>;
+    /**
+     * `cancel_current_sales_order_remainder`. ⚠️ Confirmed order-wide, not
+     * per-line: it cancels the remaining open demand on *every* short line
+     * on the order in one call — there is no per-line cancel RPC. Requires
+     * `sales.manage`.
+     */
+    cancelRemainder(
+      companyId: UUID,
+      input: { salesOrderId: UUID; expectedOrderRowVersion: number; reason: string; idempotencyKey: string }
+    ): Promise<void>;
+    /**
+     * `release_current_backorder`. Allocates newly-available stock against
+     * one line's existing backordered quantity — the "stock showed up,
+     * ship what we can now" action, not a way to *create* a backorder (a
+     * line is simply backordered whenever its remaining demand has no
+     * reservation; nothing needs to be called to put it in that state).
+     * Requires `sales.manage`.
+     */
+    allocateBackorder(
+      companyId: UUID,
+      input: { salesOrderLineId: UUID; expectedOrderRowVersion: number; quantity: number | null; idempotencyKey: string }
+    ): Promise<void>;
   };
   vendors: {
     /** `vendor_read` — confirmed against the live ERP source 1 Oct. Requires `vendors.read`. */

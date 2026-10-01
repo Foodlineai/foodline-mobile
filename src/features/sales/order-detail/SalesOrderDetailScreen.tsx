@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { FoodlineButton } from '../../../components/FoodlineButton';
 import { Card, CardRow, Mono, StatusPill } from '../../../components/primitives';
 import { colors, space, type as typeScale } from '../../../theme/tokens';
 import type { SalesOrderDetail } from './types';
@@ -8,9 +9,12 @@ import type { SalesOrderDetail } from './types';
 export type SalesOrderDetailScreenProps = {
   order: SalesOrderDetail;
   onOpenCustomer?: () => void;
+  onResolveShort?: () => void;
 };
 
-export function SalesOrderDetailScreen({ order, onOpenCustomer }: SalesOrderDetailScreenProps) {
+export function SalesOrderDetailScreen({ order, onOpenCustomer, onResolveShort }: SalesOrderDetailScreenProps) {
+  const hasShort = order.lines.some((l) => Number(l.backorderedBaseQuantity ?? '0') > 0);
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View>
@@ -70,6 +74,9 @@ export function SalesOrderDetailScreen({ order, onOpenCustomer }: SalesOrderDeta
                 <Text style={styles.itemMeta} numberOfLines={1}>
                   {line.sku ? `${line.sku} · ` : ''}
                   {line.orderedQuantity} {line.uomCode} ordered · {line.shippedBaseQuantity} shipped
+                  {line.backorderedBaseQuantity && Number(line.backorderedBaseQuantity) > 0
+                    ? ` · ${line.backorderedBaseQuantity} short`
+                    : ''}
                 </Text>
               </View>
               <Text style={styles.orderTotal}>{line.totalAmount ?? '—'}</Text>
@@ -77,6 +84,10 @@ export function SalesOrderDetailScreen({ order, onOpenCustomer }: SalesOrderDeta
           ))
         )}
       </Card>
+
+      {hasShort && onResolveShort ? (
+        <FoodlineButton label="Resolve the short" onPress={onResolveShort} testID="sales-order-resolve-short" />
+      ) : null}
     </ScrollView>
   );
 }

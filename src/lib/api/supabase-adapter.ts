@@ -26,9 +26,10 @@ import type {
 } from './types';
 import * as workos from '@/features/auth/workos';
 import { toCustomerDetail } from '@/features/customers/adapter';
+import { toItemDetail } from '@/features/items/detail/adapter';
 import { toPurchaseOrderDetail } from '@/features/purchasing/order-detail/adapter';
 import type { DraftedPurchaseOrder } from '@/features/routines/types';
-import { toSalesOrderDetail } from '@/features/sales/order-detail/adapter';
+import { toSalesOrderDetail, toSalesOrderFulfillment } from '@/features/sales/order-detail/adapter';
 import type { ShipmentDraft } from '@/features/shipments/types';
 import { toVendorDetail } from '@/features/vendors/adapter';
 
@@ -323,6 +324,11 @@ export const supabaseApi: FoodlineApi = {
       if (params?.onlyBelowPar) rows = rows.filter((i) => i.status === 'low' || i.status === 'out');
       return rows;
     },
+
+    async detail(companyId, productId) {
+      const payload = await call(companyId, 'get_current_product_workspace', { p_product_id: productId });
+      return toItemDetail(payload as Row);
+    },
   },
 
   purchaseOrders: {
@@ -387,6 +393,26 @@ export const supabaseApi: FoodlineApi = {
     async orderDetail(companyId, salesOrderId) {
       const payload = await call(companyId, 'get_current_sales_order_detail', { p_sales_order_id: salesOrderId });
       return toSalesOrderDetail(payload as Row);
+    },
+    async orderFulfillment(companyId, salesOrderId) {
+      const payload = await call(companyId, 'get_current_sales_order_fulfillment', { p_sales_order_id: salesOrderId });
+      return toSalesOrderFulfillment(payload as Row);
+    },
+    async cancelRemainder(companyId, input) {
+      await call(companyId, 'cancel_current_sales_order_remainder', {
+        p_command_key: input.idempotencyKey,
+        p_sales_order_id: input.salesOrderId,
+        p_expected_order_row_version: input.expectedOrderRowVersion,
+        p_reason: input.reason,
+      });
+    },
+    async allocateBackorder(companyId, input) {
+      await call(companyId, 'release_current_backorder', {
+        p_command_key: input.idempotencyKey,
+        p_sales_order_line_id: input.salesOrderLineId,
+        p_expected_order_row_version: input.expectedOrderRowVersion,
+        p_quantity: input.quantity,
+      });
     },
   },
 

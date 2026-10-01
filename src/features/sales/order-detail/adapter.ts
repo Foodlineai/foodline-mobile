@@ -1,3 +1,4 @@
+import type { SalesOrderFulfillment } from './fulfillment-types';
 import type { SalesOrderDetail, SalesOrderLineDetail } from './types';
 import type { Tone } from '../../../components/primitives';
 
@@ -62,6 +63,54 @@ function mapLine(row: Raw, index: number): SalesOrderLineDetail {
     shippedBaseQuantity: str(row.shippedBaseQuantity, '0'),
     unitPrice: money(row.unitPrice),
     totalAmount: money(row.totalAmount),
+    remainingBaseQuantity: null,
+    backorderedBaseQuantity: null,
+  };
+}
+
+/**
+ * `SALES_ORDER_FULFILLMENT_RPC` confirmed 1 Oct, same source:
+ * `get_current_sales_order_fulfillment(p_sales_order_id uuid)`. Also returns
+ * `waves` (pick-wave/task state) — not mapped here, that belongs to the
+ * pick-and-pack screen, not an order-detail read.
+ */
+export const SALES_ORDER_FULFILLMENT_RPC: string | null = 'get_current_sales_order_fulfillment';
+
+export function toSalesOrderFulfillment(raw: Raw | null | undefined): SalesOrderFulfillment | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const salesOrderId = str((raw as Raw).salesOrderId);
+  if (!salesOrderId) return null;
+  return {
+    salesOrderId,
+    orderRowVersion: str((raw as Raw).orderRowVersion, '1'),
+    lines: arr((raw as Raw).lines).map((row) => ({
+      salesOrderLineId: str(row.salesOrderLineId, 'unknown'),
+      orderedBaseQuantity: str(row.orderedBaseQuantity, '0'),
+      shippedBaseQuantity: str(row.shippedBaseQuantity, '0'),
+      reservedBaseQuantity: str(row.reservedBaseQuantity, '0'),
+      pickedUnshippedBaseQuantity: str(row.pickedUnshippedBaseQuantity, '0'),
+      cancelledBaseQuantity: str(row.cancelledBaseQuantity, '0'),
+      remainingBaseQuantity: str(row.remainingBaseQuantity, '0'),
+      backorderedBaseQuantity: str(row.backorderedBaseQuantity, '0'),
+    })),
+  };
+}
+
+/** Merges fulfillment facts into a detail's lines, matched by line id. Pure — returns a new object. */
+export function mergeSalesOrderFulfillment(
+  detail: SalesOrderDetail,
+  fulfillment: SalesOrderFulfillment | null
+): SalesOrderDetail {
+  if (!fulfillment) return detail;
+  const byLineId = new Map(fulfillment.lines.map((l) => [l.salesOrderLineId, l]));
+  return {
+    ...detail,
+    lines: detail.lines.map((line) => {
+      const f = byLineId.get(line.id);
+      return f
+        ? { ...line, remainingBaseQuantity: f.remainingBaseQuantity, backorderedBaseQuantity: f.backorderedBaseQuantity }
+        : line;
+    }),
   };
 }
 

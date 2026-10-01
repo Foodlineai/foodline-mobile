@@ -18,9 +18,10 @@ import type {
   StopDetail,
 } from './types';
 import { demoCustomer, demoCustomerNoPattern } from '@/features/customers/fixtures';
+import { demoItemDetails } from '@/features/items/detail/fixtures';
 import { demoPurchaseOrderDetails } from '@/features/purchasing/order-detail/fixtures';
 import { demoDraftedPO } from '@/features/routines/fixtures';
-import { demoSalesOrderDetails } from '@/features/sales/order-detail/fixtures';
+import { demoSalesOrderDetails, demoSalesOrderFulfillments } from '@/features/sales/order-detail/fixtures';
 import { demoVendorDetails } from '@/features/vendors/fixtures';
 
 const COMPANY_ID = '00000000-0000-4000-8000-000000000001';
@@ -208,6 +209,10 @@ export const demoApi: FoodlineApi = {
       if (q) rows = rows.filter((i) => i.name.toLowerCase().includes(q) || i.sku.toLowerCase().includes(q));
       return rows;
     },
+    async detail(_companyId, productId) {
+      await wait();
+      return demoItemDetails[productId] ?? null;
+    },
   },
   purchaseOrders: {
     async list(_companyId, params) {
@@ -237,6 +242,24 @@ export const demoApi: FoodlineApi = {
     async orderDetail(_companyId, salesOrderId) {
       await wait();
       return demoSalesOrderDetails[salesOrderId] ?? null;
+    },
+    async orderFulfillment(_companyId, salesOrderId) {
+      await wait();
+      return demoSalesOrderFulfillments[salesOrderId] ?? null;
+    },
+    async cancelRemainder(_companyId, input) {
+      await wait(220);
+      if (usedIdempotencyKeys.has(input.idempotencyKey)) return;
+      const order = demoSalesOrderDetails[input.salesOrderId];
+      if (order && order.rowVersion !== String(input.expectedOrderRowVersion)) {
+        throw new Error('This order changed since you loaded it. Reload and try again.');
+      }
+      usedIdempotencyKeys.add(input.idempotencyKey);
+    },
+    async allocateBackorder(_companyId, input) {
+      await wait(220);
+      if (usedIdempotencyKeys.has(input.idempotencyKey)) return;
+      usedIdempotencyKeys.add(input.idempotencyKey);
     },
   },
   vendors: {

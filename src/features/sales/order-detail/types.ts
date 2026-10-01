@@ -12,6 +12,9 @@ export type SalesOrderLineDetail = {
   shippedBaseQuantity: string;
   unitPrice: string | null;
   totalAmount: string | null;
+  /** Filled in once fulfillment facts are merged in; null until then. */
+  remainingBaseQuantity: string | null;
+  backorderedBaseQuantity: string | null;
 };
 
 export type SalesOrderDetail = {
