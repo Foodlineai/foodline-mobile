@@ -10,11 +10,7 @@ import { useCompanyId } from '@/features/auth/auth-context';
 import { api } from '@/lib/api';
 
 /**
- * Screen 11 — Route, map and table (D3). `RouteScreen` is the delivered,
- * self-contained view; this route supplies live data via the adapter and
- * navigation. The map itself is an unmade decision (see RouteScreen.tsx's
- * own header) — `mapContent` stays unset, which renders the labelled
- * placeholder the delivered screen already handles.
+ * Live route sequence and stop detail navigation.
  */
 export default function Routes() {
   const companyId = useCompanyId();

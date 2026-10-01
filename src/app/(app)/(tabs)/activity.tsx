@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import React from 'react';
-import { RefreshControl, ScrollView, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppHeader, initialsFrom } from '@/components/app-header';
@@ -44,13 +44,6 @@ export default function Activity() {
               ))}
             </Group>
           )}
-
-          <View className="pt-2">
-            <Text className="text-sm text-ink-muted">
-              Notification history and audit events will surface here once the ERP&apos;s notifications
-              RPC is wired in.
-            </Text>
-          </View>
         </ScrollView>
       </SafeAreaView>
     </Screen>

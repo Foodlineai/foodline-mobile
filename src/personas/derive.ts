@@ -53,12 +53,10 @@ const LABEL: Record<PersonaId, string> = {
 };
 
 /**
- * Same reasoning as `personas/fixtures.ts`'s demo personas: a rep quoting
- * from landed cost is how margin walks out of the building, so sales stays
- * GP%-only regardless of company. Not from any confirmed backend field —
- * cost visibility per role isn't exposed by `application_session_context`
- * either, so this mirrors the demo defaults rather than inventing a fifth
- * unconfirmed data source.
+ * A sales representative quoting from landed cost is how margin walks out of
+ * the building, so sales stays GP%-only. Cost visibility per role isn't exposed
+ * by `application_session_context`, so this remains a presentation policy while
+ * server permissions stay authoritative.
  */
 const COST_VISIBILITY: Record<PersonaId, CostVisibility> = {
   admin: 'full',

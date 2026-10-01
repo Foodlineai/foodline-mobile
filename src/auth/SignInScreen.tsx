@@ -26,11 +26,9 @@ export type SignInScreenProps = {
   busy?: boolean;
   /** Set when a previous attempt failed. Plain language, never a raw error. */
   error?: string | null;
-  /** Shown only when demo mode is compiled in. */
-  onUseDemoMode?: () => void;
 };
 
-export function SignInScreen({ onSignIn, busy = false, error, onUseDemoMode }: SignInScreenProps) {
+export function SignInScreen({ onSignIn, busy = false, error }: SignInScreenProps) {
   return (
     <LinearGradient
       colors={['#16297E', colors.ink.DEFAULT]}
@@ -65,12 +63,6 @@ export function SignInScreen({ onSignIn, busy = false, error, onUseDemoMode }: S
         <Text style={styles.secure}>
           Sign-in opens a secure page. Your password is never entered in this app.
         </Text>
-
-        {onUseDemoMode && (
-          <Text style={styles.demo} onPress={onUseDemoMode} accessibilityRole="button">
-            Continue in demo mode
-          </Text>
-        )}
       </View>
     </LinearGradient>
   );
@@ -238,14 +230,6 @@ const styles = StyleSheet.create({
 
   signInFoot: { paddingBottom: 44, gap: 12 },
   secure: { ...typeScale.small, color: '#96A8CE', textAlign: 'center' },
-  demo: {
-    ...typeScale.small,
-    color: '#9DB9F8',
-    textAlign: 'center',
-    textDecorationLine: 'underline',
-    paddingVertical: 8,
-  },
-
   errorBox: {
     padding: 13,
     borderRadius: radius.card,

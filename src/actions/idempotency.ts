@@ -1,3 +1,5 @@
+import * as Crypto from 'expo-crypto';
+
 /**
  * Idempotency keys.
  *
@@ -11,18 +13,6 @@
  * a `uuid()` call inlined at each mutation site.
  */
 
-let counter = 0;
-
-/**
- * Not cryptographic — it only needs to be unique per device per attempt, and the
- * server dedupes on it. Avoids pulling in a uuid dependency for that.
- */
-function newKey(scope: string): string {
-  counter += 1;
-  const rand = Math.random().toString(36).slice(2, 10);
-  return `${scope}-${Date.now().toString(36)}-${counter.toString(36)}-${rand}`;
-}
-
 /**
  * One attempt at one mutation. Create it when the button is pressed; pass the
  * same instance to every retry.
@@ -34,7 +24,7 @@ export class Attempt {
 
   constructor(scope: string) {
     this.scope = scope;
-    this.key = newKey(scope);
+    this.key = Crypto.randomUUID();
   }
 
   /** Headers for the mutation. Spread into the request on every retry. */

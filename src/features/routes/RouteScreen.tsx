@@ -1,25 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '../../components/primitives';
 import { colors, radius, space, type as typeScale } from '../../theme/tokens';
-import type { RouteStop, RouteSummary, RouteView, StopState } from './types';
+import type { RouteStop, RouteSummary, StopState } from './types';
 
-/**
- * Screen 11 — Route, map and table.
- *
- * The 18 Sep ask was both views, not a choice between them: the map answers
- * "where am I", the table answers "what is left", and dispatch needs the second
- * more than the first.
- *
- * ⚠️ TODO(map): the map provider is an unmade decision. `react-native-maps` is
- * not in Expo Go, so adding it forces a development build and costs the
- * "runs on any phone in thirty seconds" demo property. The alternatives are a
- * static rendered map image from the server, or deferring the map entirely.
- * Until that is decided, `MapSlot` renders a labelled placeholder and the table
- * carries the screen — which is the half that dispatch actually uses.
- * Do not add a map dependency without raising it first.
- */
+/** Live route sequence and stop status, with an optional production map slot. */
 
 const STOP_TONE: Record<StopState, { fg: string; bg: string; line: string }> = {
   delivered: { fg: colors.ok.DEFAULT, bg: colors.ok.tint, line: colors.ok.line },
@@ -31,13 +17,11 @@ const STOP_TONE: Record<StopState, { fg: string; bg: string; line: string }> = {
 export type RouteScreenProps = {
   route: RouteSummary;
   onOpenStop: (stop: RouteStop) => void;
-  /** Rendered inside the map slot once a provider is chosen. */
+  /** Rendered when a production map provider is configured. */
   mapContent?: React.ReactNode;
 };
 
 export function RouteScreen({ route, onOpenStop, mapContent }: RouteScreenProps) {
-  const [view, setView] = useState<RouteView>('both');
-
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View>
@@ -45,30 +29,19 @@ export function RouteScreen({ route, onOpenStop, mapContent }: RouteScreenProps)
         <Text style={styles.subtitle}>{route.progressLabel}</Text>
       </View>
 
-      <View style={styles.segment}>
-        <SegmentButton label="Map" on={view === 'map'} onPress={() => setView('map')} />
-        <SegmentButton
-          label="Map and table"
-          on={view === 'both'}
-          onPress={() => setView('both')}
-        />
-      </View>
+      {mapContent ? <View style={styles.map}>{mapContent}</View> : null}
 
-      <MapSlot>{mapContent}</MapSlot>
+      <Card padded={false}>
+        <View style={styles.tableHead}>
+          <Text style={[styles.headCell, styles.colSeq]}>Stop</Text>
+          <Text style={[styles.headCell, styles.colName]}>Customer</Text>
+          <Text style={[styles.headCell, styles.colWindow]}>Window</Text>
+        </View>
 
-      {view === 'both' && (
-        <Card padded={false}>
-          <View style={styles.tableHead}>
-            <Text style={[styles.headCell, styles.colSeq]}>Stop</Text>
-            <Text style={[styles.headCell, styles.colName]}>Customer</Text>
-            <Text style={[styles.headCell, styles.colWindow]}>Window</Text>
-          </View>
-
-          {route.stops.map((stop, i) => (
-            <StopRow key={stop.id} stop={stop} first={i === 0} onPress={() => onOpenStop(stop)} />
-          ))}
-        </Card>
-      )}
+        {route.stops.map((stop, i) => (
+          <StopRow key={stop.id} stop={stop} first={i === 0} onPress={() => onOpenStop(stop)} />
+        ))}
+      </Card>
     </ScrollView>
   );
 }
@@ -122,64 +95,12 @@ function StopRow({
   );
 }
 
-function SegmentButton({
-  label,
-  on,
-  onPress,
-}: {
-  label: string;
-  on: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected: on }}
-      style={[styles.segmentButton, on && styles.segmentButtonOn]}
-    >
-      <Text style={[styles.segmentText, on && styles.segmentTextOn]}>{label}</Text>
-    </Pressable>
-  );
-}
-
-/** Holds the map once a provider is chosen. See the TODO(map) note above. */
-function MapSlot({ children }: { children?: React.ReactNode }) {
-  if (children) return <View style={styles.map}>{children}</View>;
-
-  return (
-    <View style={[styles.map, styles.mapEmpty]} accessibilityLabel="Route map, not yet available">
-      <Text style={styles.mapEmptyText}>Map view</Text>
-      <Text style={styles.mapEmptyNote}>Provider not chosen — the stop list below is live</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.surface.DEFAULT },
   content: { padding: space.screen, gap: space.gap, paddingBottom: 40 },
 
   title: { ...typeScale.titleSm, color: colors.ink.DEFAULT },
   subtitle: { ...typeScale.small, fontSize: 13, color: colors.ink.muted, marginTop: 3 },
-
-  segment: {
-    flexDirection: 'row',
-    padding: 3,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surface.raised,
-    borderWidth: 1,
-    borderColor: colors.hairline.DEFAULT,
-  },
-  segmentButton: {
-    flex: 1,
-    height: 36,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segmentButtonOn: { backgroundColor: colors.surface.card },
-  segmentText: { fontSize: 13, fontWeight: '600', color: colors.ink.muted },
-  segmentTextOn: { color: colors.brand.pressed },
 
   map: {
     height: 178,
@@ -188,15 +109,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.hairline.DEFAULT,
   },
-  mapEmpty: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    backgroundColor: colors.surface.raised,
-  },
-  mapEmptyText: { ...typeScale.bodyStrong, color: colors.ink.subtle },
-  mapEmptyNote: { fontSize: 11, color: colors.ink.disabled },
-
   tableHead: {
     flexDirection: 'row',
     alignItems: 'center',

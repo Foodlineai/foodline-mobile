@@ -8,7 +8,6 @@ import { disableUnlock, enableUnlock, isEnabled } from '@/auth/biometrics';
 import { Button, Group, GroupLabel, ListRow, Screen } from '@/components/ui';
 import { useAuth } from '@/features/auth/auth-context';
 import * as workos from '@/features/auth/workos';
-import { isDemoMode } from '@/lib/env';
 
 /**
  * Account — session info, sign-out, and biometric quick sign-in (drop 7),
@@ -43,7 +42,6 @@ export default function Account() {
   const [bioError, setBioError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isDemoMode) return;
     let live = true;
     void isEnabled().then((v) => live && setBioEnabled(v));
     return () => {
@@ -85,13 +83,9 @@ export default function Account() {
           />
         </Group>
 
-        {!isDemoMode ? (
-          <>
-            <GroupLabel label="Security" />
-            <BiometricSetting enabled={bioEnabled} onChange={(next) => void onToggleBiometric(next)} />
-            {bioError ? <Text className="text-sm text-danger">{bioError}</Text> : null}
-          </>
-        ) : null}
+        <GroupLabel label="Security" />
+        <BiometricSetting enabled={bioEnabled} onChange={(next) => void onToggleBiometric(next)} />
+        {bioError ? <Text className="text-sm text-danger">{bioError}</Text> : null}
 
         <Button label="Sign out" variant="ghost" onPress={() => void signOut()} />
       </SafeAreaView>

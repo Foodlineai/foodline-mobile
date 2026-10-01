@@ -17,7 +17,6 @@ export type AuthGateProps = {
   onSignIn: () => void;
   onChooseCompany: (company: CompanyOption) => void;
   onReauthenticate: () => void;
-  onUseDemoMode?: () => void;
   children: React.ReactNode;
 };
 
@@ -26,7 +25,6 @@ export function AuthGate({
   onSignIn,
   onChooseCompany,
   onReauthenticate,
-  onUseDemoMode,
   children,
 }: AuthGateProps) {
   switch (state.status) {
@@ -34,7 +32,7 @@ export function AuthGate({
       return <SplashScreen />;
 
     case 'signed-out':
-      return <SignInScreen onSignIn={onSignIn} error={state.error} onUseDemoMode={onUseDemoMode} />;
+      return <SignInScreen onSignIn={onSignIn} error={state.error} />;
 
     case 'authenticating':
       return <SignInScreen onSignIn={onSignIn} busy />;

@@ -127,7 +127,12 @@ export default function Home() {
                 title="AI summary"
                 body={home.data.aiSummary.body}
                 actionLabel={home.data.aiSummary.actionLabel}
-                onAction={() => router.push('/(app)/(tabs)/more')}
+                onAction={() =>
+                  router.push({
+                    pathname: '/(app)/(tabs)/ai',
+                    params: { prompt: home.data.aiSummary?.body ?? '' },
+                  })
+                }
               />
             ) : null}
 

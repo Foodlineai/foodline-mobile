@@ -20,5 +20,3 @@ export type RouteSummary = {
   progressLabel: string;
   stops: RouteStop[];
 };
-
-export type RouteView = 'map' | 'both';

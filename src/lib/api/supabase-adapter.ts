@@ -185,16 +185,30 @@ function toCustomer(r: Row): Customer {
 }
 
 function toStop(r: Row): DeliveryStop {
+  const rawState = str(r.state ?? r.status, 'pending');
+  const state: DeliveryStop['state'] =
+    rawState === 'completed'
+      ? 'complete'
+      : rawState === 'planned'
+        ? 'pending'
+        : rawState === 'skipped'
+          ? 'failed'
+          : (rawState as DeliveryStop['state']);
+  const windowStart = str(r.deliveryWindowStart ?? r.delivery_window_start);
+  const windowEnd = str(r.deliveryWindowEnd ?? r.delivery_window_end);
   return {
-    id: str(r.id ?? r.stop_id),
+    id: str(r.id ?? r.stopId ?? r.stop_id),
     sequence: num(r.sequence ?? r.stop_number ?? r.position),
-    customerName: str(r.customer_name ?? r.name),
+    customerName: str(r.customerName ?? r.customer_name ?? r.stopName ?? r.name),
     address: str(r.address ?? r.address_line),
-    windowLabel: (r.window_label as string | null) ?? null,
+    windowLabel:
+      (r.windowLabel as string | null) ??
+      (r.window_label as string | null) ??
+      (windowStart && windowEnd ? `${windowStart}–${windowEnd}` : null),
     note: (r.note as string | null) ?? (r.instructions as string | null) ?? null,
-    state: (r.state as DeliveryStop['state']) ?? (r.status as DeliveryStop['state']) ?? 'pending',
+    state,
     phone: (r.phone as string | null) ?? null,
-    rowVersion: num(r.row_version ?? r.stop_row_version, 1),
+    rowVersion: num(r.rowVersion ?? r.row_version ?? r.stopRowVersion ?? r.stop_row_version, 1),
   };
 }
 
@@ -381,52 +395,70 @@ export const supabaseApi: FoodlineApi = {
   routes: {
     async today(companyId): Promise<DeliveryRoute | null> {
       const payload = (await call(companyId, 'get_current_delivery_route_workspace')) as Row;
-      const route = (payload.route ?? payload) as Row;
-      const stops = asRows(route.stops ?? payload.stops).map(toStop);
-      if (stops.length === 0 && !route.id) return null;
+      const routes = asRows(payload.routes);
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+        now.getDate()
+      ).padStart(2, '0')}`;
+      const currentRoutes = routes.filter((candidate) => candidate.serviceDate === today);
+      const candidates = currentRoutes.length > 0 ? currentRoutes : routes;
+      const route =
+        candidates.find((candidate) => candidate.status === 'in_progress') ??
+        candidates.find((candidate) => candidate.status === 'ready') ??
+        candidates[0] ??
+        ((payload.route ?? payload) as Row);
+      const stops = asRows(route.stops).map(toStop);
+      if (!route.id) return null;
+      const vehicle = route.vehicle as Row | null | undefined;
       return {
         id: str(route.id ?? route.route_id),
-        code: str(route.code ?? route.route_code),
-        vehicleLabel: (route.vehicle_label as string | null) ?? (route.vehicle_code as string | null) ?? null,
-        stopsTotal: num(route.stops_total, stops.length),
-        stopsComplete: num(route.stops_complete, stops.filter((s2) => s2.state === 'complete').length),
+        code: str(route.documentNumber ?? route.routeName ?? route.code ?? route.route_code),
+        vehicleLabel:
+          (vehicle?.name as string | null) ??
+          (vehicle?.code as string | null) ??
+          (route.vehicle_label as string | null) ??
+          (route.vehicle_code as string | null) ??
+          null,
+        stopsTotal: num(route.stopCount ?? route.stops_total, stops.length),
+        stopsComplete: num(
+          route.completedStopCount ?? route.stops_complete,
+          stops.filter((candidate) => candidate.state === 'complete').length
+        ),
         stops,
       };
     },
     async stop(companyId, stopId): Promise<StopDetail | null> {
       const payload = (await call(companyId, 'get_current_delivery_stop_detail', { p_stop_id: stopId })) as Row;
       const raw = (payload.stop ?? payload) as Row;
-      if (!raw || (!raw.id && !raw.stop_id)) return null;
+      if (!raw || (!raw.id && !raw.stopId && !raw.stop_id)) return null;
+      const shipments = asRows(payload.shipments);
+      const lines = shipments.flatMap((shipment) =>
+        asRows(shipment.lines).map(
+          (line): ShipmentLine => ({
+            id: str(line.shipmentLineId ?? line.id ?? line.line_id),
+            productName: str(line.productName ?? line.product_name ?? line.name),
+            quantityLabel:
+              str(line.quantityLabel ?? line.quantity_label) ||
+              `${str(line.quantity ?? line.baseQuantity ?? '0')} base units`,
+            state: 'To confirm',
+          })
+        )
+      );
       return {
         stop: toStop(raw),
-        lines: asRows(payload.lines ?? payload.shipment_lines).map(
-          (l): ShipmentLine => ({
-            id: str(l.id ?? l.line_id),
-            productName: str(l.product_name ?? l.name),
-            quantityLabel: str(l.quantity_label) || `${num(l.quantity)} ${str(l.uom_code, 'ea')}`,
-            state: str(l.state ?? l.status, 'To confirm'),
-          })
-        ),
+        lines:
+          lines.length > 0
+            ? lines
+            : asRows(payload.lines ?? payload.shipment_lines).map(
+                (line): ShipmentLine => ({
+                  id: str(line.id ?? line.line_id),
+                  productName: str(line.product_name ?? line.name),
+                  quantityLabel:
+                    str(line.quantity_label) || `${str(line.quantity ?? '0')} ${str(line.uom_code, 'ea')}`,
+                  state: str(line.state ?? line.status, 'To confirm'),
+                })
+              ),
       };
-    },
-    async recordProofOfDelivery(companyId, input) {
-      // `p_proof` is opaque JSON — the key names below are unconfirmed against the
-      // ERP's own RPC body (see contracts/design.md: "confirm with Kartikeya, then
-      // tighten"). If this errors with an unexpected-shape message from Postgres,
-      // that is the signal the keys need correcting, not a reason to drop the
-      // expected row version — a dropped connection mid-submit must never record
-      // a delivery twice or overwrite a newer stop state.
-      await call(companyId, 'record_current_proof_of_delivery_exact', {
-        p_command_key: input.idempotencyKey,
-        p_proof: {
-          stop_id: input.stopId,
-          expected_row_version: input.stopRowVersion,
-          recipient_name: input.recipientName,
-          signature_captured: input.signatureCaptured,
-          photo_captured: input.photoCaptured,
-          client_occurred_at: new Date().toISOString(),
-        },
-      });
     },
   },
 

@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, Screen } from '@/components/ui';
 import { useAuth } from '@/features/auth/auth-context';
 import { WorkspaceDirectoryScreen } from '@/features/workspaces/WorkspaceDirectoryScreen';
-import { builtWorkspaces } from '@/personas/fixtures';
+import { builtWorkspaces } from '@/personas/workspaces';
 import type { WorkspaceId } from '@/personas/types';
 import { openLiveErp } from '@/lib/open-erp';
 
