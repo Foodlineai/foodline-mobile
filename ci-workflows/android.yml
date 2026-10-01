@@ -11,17 +11,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # The APK does NOT wait on lint/typecheck. A demo build is worth more than a
-  # clean lint run, and a style warning must never cost you the artifact.
   apk:
     name: Build debug APK
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     env:
-      EXPO_PUBLIC_DEMO_MODE: '1'
-      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
-      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'placeholder' }}
-      EXPO_PUBLIC_WORKOS_CLIENT_ID: ${{ secrets.EXPO_PUBLIC_WORKOS_CLIENT_ID || 'placeholder' }}
+      NODE_ENV: production
+      EXPO_PUBLIC_APP_ENV: production
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      EXPO_PUBLIC_WORKOS_CLIENT_ID: ${{ secrets.EXPO_PUBLIC_WORKOS_CLIENT_ID }}
+      EXPO_PUBLIC_WORKOS_AUTH_DOMAIN: https://api.workos.com
+      EXPO_PUBLIC_ERP_BASE_URL: https://erp.foodlineai.com
+      ORG_GRADLE_PROJECT_reactNativeArchitectures: arm64-v8a
     steps:
       - uses: actions/checkout@v4
 
@@ -39,6 +41,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+
+      - name: Verify live configuration
+        run: |
+          test -n "$EXPO_PUBLIC_SUPABASE_URL"
+          test -n "$EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+          test -n "$EXPO_PUBLIC_WORKOS_CLIENT_ID"
 
       - uses: actions/setup-java@v4
         with:

@@ -74,13 +74,13 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon --stacktrace
         env:
-          EXPO_PUBLIC_DEMO_MODE: ${{ inputs.demo_mode == false && '0' || '1' }}
+          EXPO_PUBLIC_APP_ENV: production
 
       - name: Name the artifact
         id: name
         run: |
           SHA=$(git rev-parse --short HEAD)
-          echo "file=Foodline-Demo-${SHA}.apk" >> "$GITHUB_OUTPUT"
+          echo "file=Foodline-Live-${SHA}.apk" >> "$GITHUB_OUTPUT"
 
       - name: Rename
         run: |

@@ -53,11 +53,7 @@ npm run start:go
 
 `.env.example` is annotated — read it rather than this section for the detail.
 
-**You do not need any real values to start.** `EXPO_PUBLIC_DEMO_MODE=1` runs the
-entire app on local fixtures: no backend, no WorkOS, no network. Build against
-that, then switch.
-
-When you do need live data, ask Mehul for:
+Ask Mehul for the live browser-safe value required by the app:
 
 | Variable | What it is |
 |---|---|

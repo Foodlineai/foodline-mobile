@@ -120,7 +120,6 @@ Screens never import `@supabase/supabase-js`. They call `api` from `@/lib/api`.
 src/app/**                       screens — expo-router, presentation + local state only
 src/lib/api/ports.ts             the interface every backend must satisfy
 src/lib/api/supabase-adapter.ts  the live implementation (WorkOS token + ERP RPCs)
-src/lib/api/demo-adapter.ts      bundled fixtures, zero network
 src/lib/api/types.ts             OUR domain types, not raw RPC payloads
 src/features/auth/workos.ts      AuthKit PKCE, tokens in SecureStore
 ```
@@ -131,13 +130,6 @@ has a `snake_case` field name in it, that is a bug.
 **Everything is an RPC.** There are no direct table reads or writes — the ERP
 retired that path. Business rules must never be duplicated between the web ERP
 and this app; that divergence is the failure mode we are explicitly designing against.
-
-## Demo mode
-
-`EXPO_PUBLIC_DEMO_MODE=1` runs the entire app on fixtures in `demo-adapter.ts`.
-Every screen must work in demo mode — it is how the app gets demoed on a plane,
-in a customer's warehouse, and in any environment where Supabase is unreachable.
-When you add a screen, add its fixtures.
 
 ## The designs are the spec
 
