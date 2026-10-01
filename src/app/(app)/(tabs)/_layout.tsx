@@ -2,14 +2,15 @@ import { Feather } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
 
+import { FoodlineAiOrb } from '@/components/foodline-ai-orb';
 import { COLORS, type IconName } from '@/components/ui';
 
-/** The five-tab shell from the mockups: Home · My Work · Activity · Search · More. */
-const TABS: { name: string; title: string; icon: IconName }[] = [
+/** The approved five-tab shell, with Foodline AI at its center. */
+const TABS: { name: string; title: string; icon?: IconName; ai?: boolean }[] = [
   { name: 'index', title: 'Home', icon: 'home' },
   { name: 'my-work', title: 'My Work', icon: 'clipboard' },
+  { name: 'ai', title: 'AI', ai: true },
   { name: 'activity', title: 'Activity', icon: 'bell' },
-  { name: 'search', title: 'Search', icon: 'search' },
   { name: 'more', title: 'More', icon: 'more-horizontal' },
 ];
 
@@ -31,10 +32,16 @@ export default function TabsLayout() {
           name={tab.name}
           options={{
             title: tab.title,
-            tabBarIcon: ({ color, size }) => <Feather name={tab.icon} size={size ?? 22} color={color} />,
+            tabBarIcon: ({ color, size }) =>
+              tab.ai ? (
+                <FoodlineAiOrb size={Math.max(size ?? 22, 34)} />
+              ) : (
+                <Feather name={tab.icon!} size={size ?? 22} color={color} />
+              ),
           }}
         />
       ))}
+      <Tabs.Screen name="search" options={{ href: null }} />
     </Tabs>
   );
 }

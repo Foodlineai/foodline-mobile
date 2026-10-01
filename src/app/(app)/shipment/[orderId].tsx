@@ -1,29 +1,48 @@
+import { useQuery } from '@tanstack/react-query';
 import * as Crypto from 'expo-crypto';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useRef, useState } from 'react';
 
-import { PostShipmentScreen } from '@/features/shipments/PostShipmentScreen';
-import { demoShipmentTarget } from '@/features/shipments/fixtures';
-import type { ShipmentDraft } from '@/features/shipments/types';
+import { EmptyState, ErrorState, Loading, Screen } from '@/components/ui';
 import { useCompanyId } from '@/features/auth/auth-context';
+import { PostShipmentScreen } from '@/features/shipments/PostShipmentScreen';
+import type { ShipmentDraft } from '@/features/shipments/types';
 import { api } from '@/lib/api';
 
-/**
- * Screen 07 — Post shipment, on `ship_current_sales_order` (confirmed against
- * the live ERP source 29 Sep). That RPC has no customer-reference param —
- * `draft.customerReference` is collected by the delivered UI but not sent
- * anywhere yet; see the port's own comment. Idempotency key generated once
- * per attempt, reused on retry; the order's row version goes back unchanged.
- *
- * `target` is still the fixture — there's no confirmed "read one order ready
- * to ship" RPC, only the post command itself.
- */
 export default function PostShipment() {
+  const { orderId } = useLocalSearchParams<{ orderId: string }>();
   const companyId = useCompanyId();
   const [posting, setPosting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const idempotencyKey = useRef(Crypto.randomUUID());
+  const target = useQuery({
+    queryKey: ['shipment', 'target', companyId, orderId],
+    queryFn: () => api.shipments.target(companyId, orderId!),
+    enabled: Boolean(orderId),
+  });
+
+  if (target.isPending)
+    return (
+      <Screen>
+        <Loading label="Loading shipment" />
+      </Screen>
+    );
+  if (target.isLoadingError)
+    return (
+      <Screen>
+        <ErrorState message={(target.error as Error).message} onRetry={() => target.refetch()} />
+      </Screen>
+    );
+  if (!target.data)
+    return (
+      <Screen>
+        <EmptyState
+          title="Order is not ready to ship"
+          hint="Reload the order after its warehouse work is complete."
+        />
+      </Screen>
+    );
 
   const post = async (draft: ShipmentDraft) => {
     setPosting(true);
@@ -32,9 +51,9 @@ export default function PostShipment() {
       await api.shipments.post(companyId, draft, idempotencyKey.current);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
-    } catch (e) {
+    } catch (cause) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setMessage((e as Error).message);
+      setMessage(cause instanceof Error ? cause.message : 'Shipment could not be posted.');
     } finally {
       setPosting(false);
     }
@@ -42,7 +61,7 @@ export default function PostShipment() {
 
   return (
     <PostShipmentScreen
-      target={demoShipmentTarget}
+      target={target.data}
       initialDate={new Date().toISOString().slice(0, 10)}
       posting={posting}
       error={message}

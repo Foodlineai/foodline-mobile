@@ -1,6 +1,6 @@
-import { Stack, usePathname } from 'expo-router';
+import { router, Stack, usePathname } from 'expo-router';
 import React from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 
 import { COLORS } from '@/components/ui';
 import { CopilotBlob } from '@/components/CopilotBlob';
@@ -50,6 +50,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/activity': 'Activity',
   '/search': 'Search',
   '/more': 'Workspaces',
+  '/ai': 'Foodline AI',
   '/sales': 'Sales & Customers',
   '/inventory': 'Inventory',
   '/purchasing': 'Purchasing',
@@ -75,16 +76,15 @@ function GlobalCopilot() {
   const pathname = usePathname();
   const contextLabel = ROUTE_LABELS[pathname] ?? 'Foodline AI';
 
+  if (pathname === '/ai') return null;
+
   return (
     <CopilotBlob
       contextLabel={contextLabel}
       onRunSuggestion={() => {}}
-      onAsk={() => {
-        // The blob's own sheet has no reply channel — it closes on send. No
-        // Copilot backend exists yet either, so this says so plainly rather
-        // than fabricating a reply or letting the question vanish silently.
-        Alert.alert('Not connected yet', "The Copilot isn't wired to a live AI service in this build.");
-      }}
+      onAsk={(prompt) =>
+        router.push({ pathname: '/(app)/(tabs)/ai', params: { prompt } } as never)
+      }
     />
   );
 }

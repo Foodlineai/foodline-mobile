@@ -125,7 +125,7 @@ export function SalesHomeScreen({
         <Pressable
           onPress={onInsightAction}
           accessibilityRole="button"
-          accessibilityLabel={`AI Copilot: ${data.insight.body}`}
+          accessibilityLabel={`Foodline AI: ${data.insight.body}`}
         >
           <LinearGradient
             colors={[colors.ai.deep, colors.ai.DEFAULT]}
@@ -133,7 +133,7 @@ export function SalesHomeScreen({
             end={{ x: 1, y: 0.4 }}
             style={styles.insight}
           >
-            <Overline color={colors.ai.line}>AI Copilot</Overline>
+            <Overline color={colors.ai.line}>Foodline AI</Overline>
             <Text style={styles.insightBody}>{data.insight.body}</Text>
             <Text style={styles.insightAction}>{data.insight.actionLabel}</Text>
           </LinearGradient>

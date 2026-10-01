@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { FoodlineAiOrb } from './foodline-ai-orb';
 import { colors, radius, space, type as typeScale } from '../theme/tokens';
 import { requiresSurface, type RecordAction } from '../actions/types';
 
@@ -82,19 +83,7 @@ export function CopilotBlob({
         accessibilityLabel={`Ask AI about ${contextLabel}`}
         style={[styles.blobShell, muted && styles.blobMuted]}
       >
-        <LinearGradient
-          colors={['#5A63E9', colors.ai.deep]}
-          start={{ x: 0.3, y: 0 }}
-          end={{ x: 0.7, y: 1 }}
-          style={styles.blob}
-        >
-          <LinearGradient
-            colors={['rgba(255,255,255,0.25)', 'rgba(255,255,255,0)']}
-            style={styles.blobGloss}
-            pointerEvents="none"
-          />
-          <Text style={styles.blobGlyph}>✦</Text>
-        </LinearGradient>
+        <FoodlineAiOrb size={58} />
       </Pressable>
 
       <Modal visible={open} animationType="slide" transparent onRequestClose={() => setOpen(false)}>
@@ -104,7 +93,7 @@ export function CopilotBlob({
           <View style={styles.grabber} />
 
           <View style={styles.sheetHead}>
-            <Text style={styles.eyebrow}>AI Copilot</Text>
+            <Text style={styles.eyebrow}>Foodline AI</Text>
             <Text style={styles.context} numberOfLines={1}>
               {contextLabel}
             </Text>
@@ -160,7 +149,7 @@ export function CopilotBlob({
                 placeholder="Ask about this screen"
                 placeholderTextColor={colors.ink.disabled}
                 style={styles.ask}
-                accessibilityLabel="Ask the Copilot about this screen"
+                accessibilityLabel="Ask Foodline AI about this screen"
                 returnKeyType="send"
                 onSubmitEditing={send}
                 autoFocus

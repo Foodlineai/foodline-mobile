@@ -1,42 +1,54 @@
+import { useQuery } from '@tanstack/react-query';
 import * as Crypto from 'expo-crypto';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { useRef, useState } from 'react';
 
-import { RoutineApprovalScreen } from '@/features/routines/RoutineApprovalScreen';
-import { coverShortsSteps, coverShortsStepsComplete, demoDraftedPO } from '@/features/routines/fixtures';
-import type { DraftedPurchaseOrder } from '@/features/routines/types';
+import { EmptyState, ErrorState, Loading, Screen } from '@/components/ui';
 import { useCompanyId } from '@/features/auth/auth-context';
+import { RoutineApprovalScreen } from '@/features/routines/RoutineApprovalScreen';
+import type { DraftedPurchaseOrder } from '@/features/routines/types';
 import { api } from '@/lib/api';
 
-/**
- * Screen 04 — Routine progress, then the approval gate. The product's central
- * commercial claim made visible: the model does the work, a person signs it
- * off. There is no path here that reaches a vendor without the tap below —
- * confirmed structurally true server-side too: `decide_purchase_order_approval_command`
- * is the only path to `approved_at`, and PO dispatch refuses to run without it.
- *
- * The draft shown here is still the fixture — there's no confirmed "read one
- * drafted PO" RPC yet, only the approve command. Approving calls the real
- * `decide_purchase_order_approval_command` (via api.routines, live mode) with
- * a command key generated once per attempt and reused on retry, and the PO's
- * row version plus the approval cycle's own id/version sent back unchanged.
- */
+const READY_STEPS = [
+  { id: 'demand', label: 'Demand analysed', state: 'done' as const },
+  { id: 'supply', label: 'Supply checked', state: 'done' as const },
+  { id: 'draft', label: 'Purchase order drafted', state: 'done' as const },
+];
+
 export default function RoutineApproval() {
+  const { id } = useLocalSearchParams<{ id: string }>();
   const companyId = useCompanyId();
-  const [running, setRunning] = useState(true);
   const [approving, setApproving] = useState(false);
-  const [approved, setApproved] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const idempotencyKey = useRef(Crypto.randomUUID());
+  const draft = useQuery({
+    queryKey: ['purchase-order', 'approval', companyId, id],
+    queryFn: () => api.routines.draft(companyId, id!),
+    enabled: Boolean(id),
+  });
 
-  useEffect(() => {
-    const t = setTimeout(() => setRunning(false), 2200);
-    return () => clearTimeout(t);
-  }, []);
-
-  const steps = running ? coverShortsSteps : coverShortsStepsComplete;
-  const draft: DraftedPurchaseOrder | undefined = running ? undefined : demoDraftedPO;
+  if (draft.isPending)
+    return (
+      <Screen>
+        <Loading label="Loading purchase order" />
+      </Screen>
+    );
+  if (draft.isLoadingError)
+    return (
+      <Screen>
+        <ErrorState message={(draft.error as Error).message} onRetry={() => draft.refetch()} />
+      </Screen>
+    );
+  if (!draft.data)
+    return (
+      <Screen>
+        <EmptyState
+          title="No approval is waiting"
+          hint="This purchase order may already have been decided or reassigned."
+        />
+      </Screen>
+    );
 
   const approve = async (toApprove: DraftedPurchaseOrder) => {
     setApproving(true);
@@ -46,12 +58,11 @@ export default function RoutineApproval() {
         draft: toApprove,
         idempotencyKey: idempotencyKey.current,
       });
-      setApproved(true);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setTimeout(() => router.back(), 700);
-    } catch (e) {
+      router.back();
+    } catch (cause) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setMessage((e as Error).message);
+      setMessage(cause instanceof Error ? cause.message : 'Approval could not be completed.');
     } finally {
       setApproving(false);
     }
@@ -59,9 +70,9 @@ export default function RoutineApproval() {
 
   return (
     <RoutineApprovalScreen
-      title={approved ? 'Approved' : "Covering tomorrow's shorts"}
-      steps={steps}
-      draft={draft}
+      title={`Review ${draft.data.reference}`}
+      steps={READY_STEPS}
+      draft={draft.data}
       approving={approving}
       error={message}
       onReviewAndApprove={approve}

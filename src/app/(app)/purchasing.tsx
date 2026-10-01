@@ -67,7 +67,15 @@ export default function Purchasing() {
                     `${summary.data.topIssue.ordersAffected} customer orders affected`,
                     `Need ${summary.data.topIssue.neededQuantity} ${summary.data.topIssue.uom} · ${summary.data.topIssue.incomingQuantity} incoming`,
                   ]}
-                  action={{ label: 'Review purchase need', onPress: () => router.push('/(app)/routine/po-2091') }}
+                  action={{
+                    label: 'Review purchase need',
+                    onPress: () => {
+                      const purchaseOrder = summary.data.awaitingReview[0];
+                      router.push(
+                        purchaseOrder ? `/(app)/routine/${purchaseOrder.id}` : '/tools/purchasing'
+                      );
+                    },
+                  }}
                 />
               </View>
             ) : null}
@@ -91,7 +99,7 @@ export default function Purchasing() {
                           </Text>
                         )
                       }
-                      onPress={() => router.push('/tools/purchasing')}
+                      onPress={() => router.push(`/(app)/routine/${po.id}`)}
                     />
                   ))}
                 </Group>

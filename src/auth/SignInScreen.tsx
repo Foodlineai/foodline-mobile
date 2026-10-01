@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { FoodlineButton } from '../components/FoodlineButton';
 import { StepProgress, type Step } from '../components/primitives';
-import { colors, radius, space, type as typeScale } from '../theme/tokens';
+import { colors, radius, type as typeScale } from '../theme/tokens';
 import type { BootstrapStage } from './types';
 
 /**

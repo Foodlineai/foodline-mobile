@@ -3,8 +3,7 @@ import type { IconName } from '@/components/ui';
 /**
  * The "<Module> tools" directories — the right-hand phone in mockups 02, 03, 04.
  *
- * `route: null` renders the row disabled with "Coming soon" rather than hiding
- * it, so the demo shows the true shape of the product and nothing dead-ends.
+ * Native routes stay in-app; `erpPath` opens the corresponding live ERP view.
  * `badge: 'view'` matches the small blue "View" chip in the designs.
  */
 export type Tool = {
@@ -13,6 +12,7 @@ export type Tool = {
   icon: IconName;
   group: string;
   route: string | null;
+  erpPath?: string;
   badge?: 'view';
 };
 
@@ -34,15 +34,15 @@ export const TOOLS_MODULES: Record<string, ToolsModule> = {
     tools: [
       { key: 'sales-orders', label: 'Sales orders', icon: 'file-text', group: 'Sales & customers', route: '/sales' },
       { key: 'customers', label: 'Customers', icon: 'users', group: 'Sales & customers', route: '/sales' },
-      { key: 'shorts', label: 'Shorts & backorders', icon: 'alert-triangle', group: 'Sales & customers', route: null },
-      { key: 'pricing', label: 'Pricing & contracts', icon: 'tag', group: 'Sales & customers', route: null, badge: 'view' },
-      { key: 'credits', label: 'Credits & returns', icon: 'rotate-ccw', group: 'Sales & customers', route: null },
+      { key: 'shorts', label: 'Shorts & backorders', icon: 'alert-triangle', group: 'Sales & customers', route: null, erpPath: '/backorders' },
+      { key: 'pricing', label: 'Pricing & contracts', icon: 'tag', group: 'Sales & customers', route: null, erpPath: '/pricing', badge: 'view' },
+      { key: 'credits', label: 'Credits & returns', icon: 'rotate-ccw', group: 'Sales & customers', route: null, erpPath: '/credits-returns' },
       { key: 'catalog', label: 'Product catalog', icon: 'box', group: 'Supporting views', route: '/inventory' },
       { key: 'stock', label: 'Stock availability', icon: 'bar-chart-2', group: 'Supporting views', route: '/inventory', badge: 'view' },
       { key: 'delivery', label: 'Delivery progress', icon: 'truck', group: 'Supporting views', route: '/routes', badge: 'view' },
-      { key: 'documents', label: 'Documents', icon: 'file', group: 'More', route: null },
-      { key: 'reports', label: 'Sales reports', icon: 'bar-chart-2', group: 'More', route: null },
-      { key: 'help', label: 'Help & preferences', icon: 'settings', group: 'More', route: null },
+      { key: 'documents', label: 'Documents', icon: 'file', group: 'More', route: null, erpPath: '/invoices' },
+      { key: 'reports', label: 'Sales reports', icon: 'bar-chart-2', group: 'More', route: null, erpPath: '/reports' },
+      { key: 'help', label: 'Help & preferences', icon: 'settings', group: 'More', route: null, erpPath: '/setup' },
     ],
   },
 
@@ -52,17 +52,17 @@ export const TOOLS_MODULES: Record<string, ToolsModule> = {
     title: 'Purchasing tools',
     groups: ['Purchasing', 'Receiving & stock', 'Supporting tools'],
     tools: [
-      { key: 'vendors', label: 'Vendors', icon: 'users', group: 'Purchasing', route: null },
-      { key: 'order-guide', label: 'Order guide', icon: 'clipboard', group: 'Purchasing', route: null },
+      { key: 'vendors', label: 'Vendors', icon: 'users', group: 'Purchasing', route: null, erpPath: '/vendors' },
+      { key: 'order-guide', label: 'Order guide', icon: 'clipboard', group: 'Purchasing', route: null, erpPath: '/order-guide' },
       { key: 'pos', label: 'Purchase orders', icon: 'file-text', group: 'Purchasing', route: '/purchasing' },
-      { key: 'issues', label: 'Receiving issues', icon: 'alert-triangle', group: 'Purchasing', route: null },
+      { key: 'issues', label: 'Receiving issues', icon: 'alert-triangle', group: 'Purchasing', route: null, erpPath: '/discrepancies' },
       { key: 'receiving', label: 'Receiving & putaway', icon: 'truck', group: 'Receiving & stock', route: '/receiving' },
       { key: 'catalog', label: 'Product catalog', icon: 'box', group: 'Receiving & stock', route: '/inventory' },
       { key: 'stock', label: 'Stock availability', icon: 'bar-chart-2', group: 'Receiving & stock', route: '/inventory', badge: 'view' },
-      { key: 'traceability', label: 'Traceability', icon: 'grid', group: 'Receiving & stock', route: null, badge: 'view' },
-      { key: 'costs', label: 'Costs & landed cost', icon: 'dollar-sign', group: 'Supporting tools', route: null },
-      { key: 'finance', label: 'Finance', icon: 'bar-chart-2', group: 'Supporting tools', route: null, badge: 'view' },
-      { key: 'docs', label: 'Documents & reports', icon: 'file', group: 'Supporting tools', route: null },
+      { key: 'traceability', label: 'Traceability', icon: 'grid', group: 'Receiving & stock', route: null, erpPath: '/traceability', badge: 'view' },
+      { key: 'costs', label: 'Costs & landed cost', icon: 'dollar-sign', group: 'Supporting tools', route: null, erpPath: '/purchase-orders' },
+      { key: 'finance', label: 'Finance', icon: 'bar-chart-2', group: 'Supporting tools', route: null, erpPath: '/accounts-payable', badge: 'view' },
+      { key: 'docs', label: 'Documents & reports', icon: 'file', group: 'Supporting tools', route: null, erpPath: '/reports' },
     ],
   },
 
@@ -73,16 +73,16 @@ export const TOOLS_MODULES: Record<string, ToolsModule> = {
     groups: ['Stock', 'Warehouse work', 'Supporting views'],
     tools: [
       { key: 'items', label: 'Items & locations', icon: 'box', group: 'Stock', route: '/inventory' },
-      { key: 'lots', label: 'Lots & expiry', icon: 'tag', group: 'Stock', route: null },
-      { key: 'counts', label: 'Cycle counts', icon: 'list', group: 'Stock', route: null },
-      { key: 'transfers', label: 'Transfers & adjustments', icon: 'repeat', group: 'Stock', route: null },
-      { key: 'traceability', label: 'Traceability', icon: 'share-2', group: 'Stock', route: null },
+      { key: 'lots', label: 'Lots & expiry', icon: 'tag', group: 'Stock', route: null, erpPath: '/lots' },
+      { key: 'counts', label: 'Cycle counts', icon: 'list', group: 'Stock', route: null, erpPath: '/cycle-counts' },
+      { key: 'transfers', label: 'Transfers & adjustments', icon: 'repeat', group: 'Stock', route: null, erpPath: '/transfers' },
+      { key: 'traceability', label: 'Traceability', icon: 'share-2', group: 'Stock', route: null, erpPath: '/traceability' },
       { key: 'scanner', label: 'Scanner work', icon: 'maximize', group: 'Warehouse work', route: '/receiving' },
       { key: 'receiving', label: 'Receiving & putaway', icon: 'package', group: 'Warehouse work', route: '/receiving' },
-      { key: 'pick', label: 'Pick & pack', icon: 'truck', group: 'Warehouse work', route: null },
+      { key: 'pick', label: 'Pick & pack', icon: 'truck', group: 'Warehouse work', route: null, erpPath: '/pick-pack' },
       { key: 'orders', label: 'Sales orders', icon: 'file-text', group: 'Supporting views', route: '/sales', badge: 'view' },
       { key: 'delivery', label: 'Delivery progress', icon: 'bar-chart-2', group: 'Supporting views', route: '/routes', badge: 'view' },
-      { key: 'documents', label: 'Documents', icon: 'file', group: 'Supporting views', route: null },
+      { key: 'documents', label: 'Documents', icon: 'file', group: 'Supporting views', route: null, erpPath: '/reports' },
     ],
   },
 };

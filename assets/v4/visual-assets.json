@@ -10,7 +10,7 @@
     "routes": "./heroes/routes-map.png"
   },
   "ai": {
-    "novaTab": "./ai/nova-orb.png"
+    "foodlineAiTab": "./ai/foodline-ai-orb.png"
   },
   "workspaceIcons": {
     "sales": "./workspace-icons/sales.svg",

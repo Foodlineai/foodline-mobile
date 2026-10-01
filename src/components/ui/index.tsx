@@ -322,7 +322,7 @@ export function NoticeCard({
   );
 }
 
-/** The AI Copilot card (contracts/design.md, Main.html's `.rise` block): a solid
+/** The Foodline AI card (contracts/design.md, Main.html's `.rise` block): a solid
  * deep-indigo gradient, never a light tint — this is what tells someone the AI
  * wrote something, so it has to look different from every other card. */
 function AiNoticeCard({

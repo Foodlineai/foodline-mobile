@@ -38,6 +38,10 @@ export const env = {
   get workosAuthDomain() {
     return process.env.EXPO_PUBLIC_WORKOS_AUTH_DOMAIN ?? 'https://api.workos.com';
   },
+  /** Web ERP host used by Foodline AI and web fallbacks for workspaces. */
+  get erpBaseUrl() {
+    return (process.env.EXPO_PUBLIC_ERP_BASE_URL ?? 'https://erp.foodlineai.com').replace(/\/$/, '');
+  },
   appEnv: (process.env.EXPO_PUBLIC_APP_ENV ?? 'development') as 'development' | 'staging' | 'production',
   version: Constants.expoConfig?.version ?? '0.0.0',
 } as const;

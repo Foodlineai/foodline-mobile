@@ -56,7 +56,7 @@ export default function Sales() {
               title="Sales & Customers"
               subtitle="Customers, orders and follow-ups"
               primary={{ label: 'New order', icon: 'plus', onPress: () => router.push('/sales/new') }}
-              secondary={{ label: 'Ask AI', icon: 'zap', onPress: () => router.push('/(app)/(tabs)/search') }}
+              secondary={{ label: 'Ask AI', icon: 'zap', onPress: () => router.push('/(app)/(tabs)/ai') }}
             />
 
             <View className="gap-3">

@@ -48,7 +48,7 @@ export const colors = {
   // ── New. Proposals — verify against design/reference/ before merging. ──
 
   /**
-   * Nova Indigo. Means "a machine authored this" and nothing else.
+   * Foodline AI indigo. Means "a machine authored this" and nothing else.
    * Never use it for an ordinary action, however much it suits the layout.
    */
   ai: {
