@@ -1,39 +1,48 @@
 import { router } from 'expo-router';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { FoodlineButton } from '@/components/FoodlineButton';
-import { colors, space, type as typeScale } from '@/theme/tokens';
+import { useCompanyId } from '@/features/auth/auth-context';
+import { CopilotScreen } from '@/features/copilot/CopilotScreen';
+import { usePageContext } from '@/features/copilot/page-context';
+import { useCopilot } from '@/features/copilot/useCopilot';
+import { useVoice } from '@/features/copilot/voice/VoiceProvider';
 
 /**
- * The centre AI tab, and the landing route for `foodline://ai` (the link used
- * to hit "Unmatched Route"). The Copilot isn't connected to a live AI service
- * in this build, so this says so plainly rather than fabricating a
- * conversation. When it is connected it only ever *proposes* — every
- * suggestion carries a RecordAction and anything review/draft routes to that
- * surface; nothing here submits (contracts/actions.md).
+ * The centre AI tab and the landing route for `foodline://ai`. Tap opens this
+ * conversation; long-press on the tab toggles inline voice instead. The
+ * conversation is a thin client onto the ERP's governed Copilot — it
+ * proposes, you review and confirm on a surface the ERP built.
+ *
+ * Keyed by company: switching company starts a clean conversation rather than
+ * carrying one company's answers into another.
  */
-export default function Copilot() {
+export default function CopilotTab() {
+  const companyId = useCompanyId();
+  return <Conversation key={companyId} companyId={companyId} />;
+}
+
+function Conversation({ companyId }: { companyId: string }) {
+  const page = usePageContext();
+  const voice = useVoice();
+  const c = useCopilot(companyId, page);
+
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
-      <View style={styles.body}>
-        <Text style={styles.glyph}>✦</Text>
-        <Text style={styles.title}>Copilot</Text>
-        <Text style={styles.text}>
-          Not connected to a live AI service in this build yet. When it is, it will propose actions here — you review
-          and approve; it never commits.
-        </Text>
-        <FoodlineButton label="Back to Home" variant="quiet" onPress={() => router.replace('/')} testID="copilot-home" />
-      </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F7FAFD' }} edges={['top']}>
+      <CopilotScreen
+        page={page}
+        messages={c.messages}
+        pending={c.pending}
+        actions={c.actions}
+        voiceActive={voice.status !== 'off'}
+        onSend={(t) => void c.send(t)}
+        onRetry={c.retry}
+        onReset={c.reset}
+        onOpenRoute={(route) => router.push(route as never)}
+        onSubmitQuestionnaire={(id, q, answers) => void c.submitQuestionnaire(id, q, answers)}
+        onConfirm={(id, review) => void c.confirm(id, review)}
+        onDismiss={c.dismiss}
+      />
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.surface.DEFAULT },
-  body: { flex: 1, padding: space.screen, gap: space.gap, justifyContent: 'center' },
-  glyph: { fontSize: 36, color: '#2F3BD6' },
-  title: { ...typeScale.titleSm, color: colors.ink.DEFAULT },
-  text: { ...typeScale.body, color: colors.ink.subtle },
-});

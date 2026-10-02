@@ -18,6 +18,8 @@ import type {
   StopDetail,
 } from './types';
 import { demoCustomer, demoCustomerNoPattern } from '@/features/customers/fixtures';
+import { demoExecuteAction, demoReviewAction, demoTurn } from '@/features/copilot/demo';
+import type { VoiceEvent } from '@/features/copilot/voice/types';
 import { demoItemDetails } from '@/features/items/detail/fixtures';
 import { toSavedCorrections } from '@/features/receiving/documents/adapter';
 import { demoOrderContext, makeDemoReview } from '@/features/receiving/documents/fixtures';
@@ -367,6 +369,43 @@ export const demoApi: FoodlineApi = {
       if (task.remainingBaseQuantity <= 0) throw new Error(`${task.productName} is already fully received`);
       task.priorReceivedBaseQuantity += 1;
       task.remainingBaseQuantity -= 1;
+    },
+  },
+
+  copilot: {
+    turn: (_companyId, input) => demoTurn(input),
+    reviewAction: (_companyId, input) => demoReviewAction(input),
+    executeAction: (_companyId, proposalToken) => demoExecuteAction(proposalToken),
+  },
+
+  voice: {
+    async start() {
+      await wait(350);
+      const listeners = new Set<(e: VoiceEvent) => void>();
+      const emit = (e: VoiceEvent) => listeners.forEach((l) => l(e));
+      const script: VoiceEvent[] = [
+        { type: 'status', status: 'listening' },
+        { type: 'line', text: 'Demo voice — no microphone is used. Ask me anything.' },
+        { type: 'status', status: 'speaking' },
+        { type: 'line', text: 'Three things need you: quotes, approvals, and delivery exceptions.' },
+        { type: 'status', status: 'listening' },
+        { type: 'line', text: 'Listening…' },
+      ];
+      const timers: ReturnType<typeof setTimeout>[] = [];
+      script.forEach((e, i) => timers.push(setTimeout(() => emit(e), 50 + i * 2400)));
+      return {
+        available: true,
+        session: {
+          subscribe(listener) {
+            listeners.add(listener);
+            return () => listeners.delete(listener);
+          },
+          stop() {
+            timers.forEach(clearTimeout);
+            listeners.clear();
+          },
+        },
+      };
     },
   },
 

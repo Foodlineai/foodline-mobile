@@ -38,6 +38,14 @@ export const env = {
   get workosAuthDomain() {
     return process.env.EXPO_PUBLIC_WORKOS_AUTH_DOMAIN ?? 'https://api.workos.com';
   },
+  /**
+   * The ERP that hosts the governed Copilot (`POST /api/mobile/copilot`).
+   * The model key never ships in the app — this is the only AI setting it
+   * needs. Defaults to production; requests still need a valid WorkOS token.
+   */
+  get erpBaseUrl() {
+    return (process.env.EXPO_PUBLIC_ERP_BASE_URL ?? 'https://erp.foodlineai.com').replace(/\/+$/, '');
+  },
   appEnv: (process.env.EXPO_PUBLIC_APP_ENV ?? 'development') as 'development' | 'staging' | 'production',
   version: Constants.expoConfig?.version ?? '0.0.0',
 } as const;
