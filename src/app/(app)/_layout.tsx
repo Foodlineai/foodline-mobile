@@ -42,6 +42,7 @@ export default function AppLayout() {
         <Stack.Screen name="sales-order/[id]/short" options={{ title: 'Resolve a short' }} />
         <Stack.Screen name="purchasing/[id]" options={{ title: 'Purchase order' }} />
         <Stack.Screen name="vendor/[id]" options={{ title: 'Vendor' }} />
+        <Stack.Screen name="ai" options={{ title: 'Copilot' }} />
       </Stack>
       <GlobalCopilot />
     </View>
