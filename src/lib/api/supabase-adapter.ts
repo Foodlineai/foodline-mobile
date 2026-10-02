@@ -27,6 +27,8 @@ import type {
 import * as workos from '@/features/auth/workos';
 import { toCustomerDetail } from '@/features/customers/adapter';
 import { toItemDetail } from '@/features/items/detail/adapter';
+import { toReviewDetail, toReviewOrderContext, toReviewSummary } from '@/features/receiving/documents/adapter';
+import type { ReviewSummary } from '@/features/receiving/documents/types';
 import { toPurchaseOrderDetail } from '@/features/purchasing/order-detail/adapter';
 import type { DraftedPurchaseOrder } from '@/features/routines/types';
 import { toSalesOrderDetail, toSalesOrderFulfillment } from '@/features/sales/order-detail/adapter';
@@ -571,6 +573,55 @@ export const supabaseApi: FoodlineApi = {
     async detail(companyId, vendorId) {
       const payload = await call(companyId, 'vendor_read', { p_company_id: companyId, p_vendor_id: vendorId });
       return toVendorDetail(payload as Row);
+    },
+  },
+
+  documents: {
+    async list(companyId) {
+      const payload = await call(companyId, 'list_governed_receiving_document_reviews');
+      return asRows(payload)
+        .map(toReviewSummary)
+        .filter((r): r is ReviewSummary => r !== null);
+    },
+    async get(companyId, reviewId) {
+      const raw = await call(companyId, 'get_governed_receiving_document_review', { p_review_id: reviewId });
+      const detail = toReviewDetail(raw as Row);
+      if (!detail) return null;
+      // Prefer the PO the reviewer already saved against; else the parser's match.
+      const poId = (((raw as Row).corrections as Row | null)?.purchaseOrderId as string | undefined) ?? detail.purchaseOrder.id;
+      if (!poId) return { detail, order: null, orderError: 'The parser did not match this document to an order.' };
+      try {
+        const po = await call(companyId, 'get_purchase_order_workspace', { p_purchase_order_id: poId });
+        const order = toReviewOrderContext(po as Row);
+        return { detail, order, orderError: order ? null : 'The matched order could not be read.' };
+      } catch (e) {
+        return { detail, order: null, orderError: (e as Error).message };
+      }
+    },
+    async saveCorrections(companyId, input) {
+      const result = (await call(companyId, 'save_governed_receiving_document_review', {
+        p_command_key: input.idempotencyKey,
+        p_review_id: input.reviewId,
+        p_expected_row_version: input.expectedRowVersion,
+        p_corrections: input.corrections,
+      })) as Row;
+      return { rowVersion: num(result.rowVersion, input.expectedRowVersion + 1) };
+    },
+    async approve(companyId, input) {
+      const result = (await call(companyId, 'materialize_and_approve_governed_receiving_document_review', {
+        p_command_key: input.idempotencyKey,
+        p_review_id: input.reviewId,
+        p_expected_row_version: input.expectedRowVersion,
+      })) as Row;
+      return { goodsReceiptId: typeof result.goodsReceiptId === 'string' ? result.goodsReceiptId : null };
+    },
+    async reject(companyId, input) {
+      await call(companyId, 'reject_governed_receiving_document_review', {
+        p_command_key: input.idempotencyKey,
+        p_review_id: input.reviewId,
+        p_expected_row_version: input.expectedRowVersion,
+        p_reason: input.reason,
+      });
     },
   },
 

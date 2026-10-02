@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Crypto from 'expo-crypto';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, RefreshControl, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -210,6 +211,14 @@ export default function Receiving() {
             ))}
           </Group>
         )}
+        <Group>
+          <ListRow
+            icon="file-text"
+            title="Delivery documents"
+            subtitle="Review supplier paperwork the system has read"
+            onPress={() => router.push('/(app)/receiving/documents')}
+          />
+        </Group>
       </StepScreen>
     );
   }

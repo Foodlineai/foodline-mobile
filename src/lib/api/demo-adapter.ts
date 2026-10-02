@@ -19,6 +19,9 @@ import type {
 } from './types';
 import { demoCustomer, demoCustomerNoPattern } from '@/features/customers/fixtures';
 import { demoItemDetails } from '@/features/items/detail/fixtures';
+import { toSavedCorrections } from '@/features/receiving/documents/adapter';
+import { demoOrderContext, makeDemoReview } from '@/features/receiving/documents/fixtures';
+import type { ReviewDetail, ReviewSummary } from '@/features/receiving/documents/types';
 import { demoPurchaseOrderDetails } from '@/features/purchasing/order-detail/fixtures';
 import { demoDraftedPO } from '@/features/routines/fixtures';
 import { demoSalesOrderDetails, demoSalesOrderFulfillments } from '@/features/sales/order-detail/fixtures';
@@ -171,6 +174,23 @@ const STOP_LINES: Record<string, StopDetail['lines']> = {
     { id: 'sl3', productName: 'Whole milk', quantity: 6, baseQuantity: 6 },
   ],
 };
+
+let demoReview: ReviewDetail = makeDemoReview();
+
+function demoReviewSummary(d: ReviewDetail): ReviewSummary {
+  return {
+    reviewId: d.reviewId,
+    status: d.status,
+    rowVersion: d.rowVersion,
+    sender: d.sender,
+    connector: d.connector,
+    receivedAt: d.receivedAt,
+    supplierDocumentNumber: d.supplierDocumentNumber.value,
+    vendorLabel: d.vendor.value,
+    purchaseOrderLabel: d.purchaseOrder.value,
+    lineCount: d.lines.length,
+  };
+}
 
 const wait = (ms = 180) => new Promise((r) => setTimeout(r, ms));
 let signedIn = true;
@@ -347,6 +367,56 @@ export const demoApi: FoodlineApi = {
       if (task.remainingBaseQuantity <= 0) throw new Error(`${task.productName} is already fully received`);
       task.priorReceivedBaseQuantity += 1;
       task.remainingBaseQuantity -= 1;
+    },
+  },
+
+  documents: {
+    async list() {
+      await wait();
+      return [demoReviewSummary(demoReview)];
+    },
+    async get(_companyId, reviewId) {
+      await wait();
+      if (reviewId !== demoReview.reviewId) return null;
+      return { detail: demoReview, order: demoOrderContext, orderError: null };
+    },
+    async saveCorrections(_companyId, input) {
+      await wait(220);
+      if (input.reviewId !== demoReview.reviewId) throw new Error('Review not found');
+      if (demoReview.rowVersion !== input.expectedRowVersion) {
+        throw new Error('This document changed since you loaded it. Reload and try again.');
+      }
+      if (demoReview.status === 'approved' || demoReview.status === 'rejected') {
+        throw new Error('This document has already been decided.');
+      }
+      const saved = toSavedCorrections(input.corrections);
+      if (!saved) throw new Error('Invalid corrections');
+      if (usedIdempotencyKeys.has(input.idempotencyKey)) return { rowVersion: demoReview.rowVersion };
+      usedIdempotencyKeys.add(input.idempotencyKey);
+      demoReview = { ...demoReview, saved, status: 'in-review', rowVersion: demoReview.rowVersion + 1 };
+      return { rowVersion: demoReview.rowVersion };
+    },
+    async approve(_companyId, input) {
+      await wait(260);
+      if (demoReview.rowVersion !== input.expectedRowVersion) {
+        throw new Error('This document changed since you loaded it. Reload and try again.');
+      }
+      if (demoReview.status !== 'in-review' || !demoReview.saved) {
+        throw new Error('Save your corrections before approving.');
+      }
+      if (usedIdempotencyKeys.has(input.idempotencyKey)) return { goodsReceiptId: demoReview.goodsReceiptId };
+      usedIdempotencyKeys.add(input.idempotencyKey);
+      demoReview = { ...demoReview, status: 'approved', goodsReceiptId: 'gr-demo-1', rowVersion: demoReview.rowVersion + 1 };
+      return { goodsReceiptId: 'gr-demo-1' };
+    },
+    async reject(_companyId, input) {
+      await wait(220);
+      if (demoReview.rowVersion !== input.expectedRowVersion) {
+        throw new Error('This document changed since you loaded it. Reload and try again.');
+      }
+      if (usedIdempotencyKeys.has(input.idempotencyKey)) return;
+      usedIdempotencyKeys.add(input.idempotencyKey);
+      demoReview = { ...demoReview, status: 'rejected', rejectionReason: input.reason, rowVersion: demoReview.rowVersion + 1 };
     },
   },
 
