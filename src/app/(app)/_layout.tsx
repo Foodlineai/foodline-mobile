@@ -42,7 +42,6 @@ export default function AppLayout() {
         <Stack.Screen name="sales-order/[id]/short" options={{ title: 'Resolve a short' }} />
         <Stack.Screen name="purchasing/[id]" options={{ title: 'Purchase order' }} />
         <Stack.Screen name="vendor/[id]" options={{ title: 'Vendor' }} />
-        <Stack.Screen name="ai" options={{ title: 'Copilot' }} />
         <Stack.Screen name="receiving/documents" options={{ title: 'Delivery documents' }} />
         <Stack.Screen name="receiving/document/[id]" options={{ title: 'Review document' }} />
       </Stack>
@@ -81,6 +80,9 @@ const ROUTE_LABELS: Record<string, string> = {
 function GlobalCopilot() {
   const pathname = usePathname();
   const contextLabel = ROUTE_LABELS[pathname] ?? 'Foodline AI';
+
+  // The AI tab is the Copilot; a floating copy of it on top would be redundant.
+  if (pathname === '/ai') return null;
 
   return (
     <CopilotBlob
