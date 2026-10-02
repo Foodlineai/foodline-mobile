@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Foodline AI — Phase 0 screen designs</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+:root{
+  --brand:#3B65ED;--press:#1D47E5;--tint:#EAF1FD;
+  --ink:#0B1020;--muted:#475776;--subtle:#6B7894;--dim:#96A8CE;
+  --surface:#F7FAFD;--card:#FFF;--line:#DDE4F0;--soft:#EEF3FC;
+  --ai:#4953E4;--aiDeep:#1A40DA;--aiTint:#E7E9FD;--aiLine:#C7CBFA;--aiPend:#3B45DC;
+  --ok:#256D32;--okTint:#F1F9EC;--okLine:#C2E6B0;
+  --warn:#A2680E;--warnInk:#7A4E07;--warnTint:#FEF4D9;--warnLine:#F3D9A9;
+  --bad:#C62F27;--badTint:#FDF0EF;--badLine:#F3C6C3;
+  --info:#1D4FA8;--infoTint:#EDF3FE;--infoLine:#C9D9F7;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0);padding-bottom:env(safe-area-inset-bottom,0);
+}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:#EDF1F8;color:var(--ink);font-family:Inter,-apple-system,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
+.page{max-width:1500px;margin:0 auto;padding:34px 22px 80px}
+h1{font-family:Outfit,sans-serif;font-size:32px;font-weight:600;margin:0 0 6px;letter-spacing:-.012em}
+.lede{color:var(--muted);max-width:80ch;margin:0 0 6px;line-height:1.6}
+.rail{display:flex;flex-wrap:wrap;gap:34px;margin-top:34px}
+figure{margin:0;width:390px}
+.frame{width:390px;height:844px;border-radius:30px;overflow:hidden;background:var(--surface);
+  border:1px solid var(--line);box-shadow:0 1px 2px rgba(11,16,32,.06),0 34px 64px -34px rgba(11,16,32,.55);
+  display:flex;flex-direction:column}
+figcaption{margin-top:13px}
+figcaption b{font-family:Outfit,sans-serif;font-size:17px;font-weight:600;display:block}
+figcaption .rpc{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--press);background:var(--tint);
+  border:1px solid var(--infoLine);border-radius:7px;padding:5px 8px;margin-top:7px;word-break:break-all;display:block}
+figcaption p{color:var(--muted);font-size:13px;line-height:1.55;margin:9px 0 0}
+
+/* phone chrome */
+.hdr{flex:0 0 auto;height:56px;display:flex;align-items:center;gap:6px;padding:0 12px;background:#fff;border-bottom:1px solid #E2E9F6}
+.hdr .back{width:34px;height:34px;display:flex;align-items:center;justify-content:center;color:#3A4661;font-size:20px}
+.hdr .ttl{font-family:Outfit,sans-serif;font-size:16px;font-weight:600}
+.hdr .sp{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--press);font-weight:600;padding-right:4px}
+.body{flex:1 1 auto;overflow:hidden;padding:15px;display:flex;flex-direction:column;gap:11px}
+.tabs{flex:0 0 auto;height:66px;background:#fff;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding-top:9px}
+.tabs div{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;color:var(--subtle)}
+.tabs div.on{color:var(--press);font-weight:600}
+.tabs i{width:17px;height:17px;border:1.6px solid currentColor;border-radius:4px;display:block}
+.tabs div.on i{background:currentColor;opacity:.22}
+
+/* kit */
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px rgba(11,16,32,.04)}
+.pad{padding:13px 15px}
+.row{display:flex;align-items:center;gap:11px;padding:11px 15px;border-top:1px solid var(--soft)}
+.row:first-child{border-top:0}
+.gr{flex:1;min-width:0}
+.t{font-weight:600;font-size:14px}
+.s{font-size:12px;color:var(--subtle);margin-top:2px}
+.mono{font-family:'JetBrains Mono',monospace;font-size:12px;font-variant-numeric:tabular-nums}
+.num{font-variant-numeric:tabular-nums;font-weight:600}
+.pill{font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid;white-space:nowrap}
+.p-ok{background:var(--okTint);border-color:var(--okLine);color:var(--ok)}
+.p-warn{background:var(--warnTint);border-color:var(--warnLine);color:var(--warnInk)}
+.p-bad{background:var(--badTint);border-color:var(--badLine);color:var(--bad)}
+.p-info{background:var(--infoTint);border-color:var(--infoLine);color:var(--info)}
+.p-ai{background:var(--aiTint);border-color:var(--aiLine);color:var(--aiPend)}
+.p-n{background:var(--surface);border-color:var(--line);color:var(--muted)}
+.ov{font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--subtle)}
+.h1{font-family:Outfit,sans-serif;font-size:23px;font-weight:600;line-height:1.25}
+.h2{font-family:Outfit,sans-serif;font-size:15px;font-weight:600}
+.btn{height:47px;border-radius:999px;display:flex;align-items:center;justify-content:center;gap:7px;
+  font-size:15px;font-weight:600;color:#fff;position:relative;overflow:hidden;
+  background:linear-gradient(180deg,#5478F0,#1D47E5);border:1px solid rgba(255,255,255,.3);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.3),0 10px 20px -8px rgba(59,101,237,.55)}
+.btn::before{content:"";position:absolute;inset:0 0 52% 0;background:linear-gradient(180deg,rgba(255,255,255,.18),transparent)}
+.btn span{position:relative;z-index:1}
+.btn.q{background:#fff;border:1px solid #C4CEE0;color:var(--muted);box-shadow:none;height:43px;font-size:14px}
+.btn.q::before{display:none}
+.btn.d{background:linear-gradient(180deg,#D4463D,#AE271F);box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 10px 20px -8px rgba(198,47,39,.5)}
+.fld{height:44px;border:1px solid var(--line);border-radius:10px;background:#fff;display:flex;align-items:center;
+  padding:0 12px;font-size:14px;color:var(--dim);box-shadow:inset 0 1px 2px rgba(11,16,32,.05)}
+.fld.filled{color:var(--ink);font-weight:600}
+.note{display:flex;gap:9px;padding:11px 13px;border-radius:12px;font-size:12px;line-height:1.5}
+.n-warn{background:var(--warnTint);border:1px solid var(--warnLine);color:var(--warnInk)}
+.n-info{background:var(--tint);border:1px solid var(--infoLine);color:var(--muted)}
+.n-ai{background:linear-gradient(100deg,var(--aiDeep),var(--ai));color:#fff;border:0}
+.stale{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;background:var(--warnTint);
+  border:1px solid var(--warnLine);font-size:11.5px;color:var(--warnInk)}
+.seg{display:grid;grid-template-columns:1fr 1fr;padding:3px;border-radius:999px;background:#E6ECF8;border:1px solid #D0DAEC}
+.seg b{height:33px;display:flex;align-items:center;justify-content:center;font-size:12.5px;border-radius:999px;color:var(--muted);font-weight:600}
+.seg b.on{background:#fff;color:var(--press);box-shadow:0 1px 3px rgba(11,16,32,.14)}
+.step{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--muted)}
+.step i{width:19px;height:19px;border-radius:999px;border:2px solid var(--line);flex:0 0 auto;display:block}
+.step.done i{background:var(--ok);border-color:var(--ok)}
+.step.now i{border-color:var(--aiLine);background:radial-gradient(circle,var(--aiPend) 38%,transparent 40%)}
+.step.now{color:var(--ink);font-weight:600}
+.bar{height:7px;border-radius:999px;background:var(--aiTint);overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--aiPend),#6E75EA)}
+.kv{display:flex;justify-content:space-between;padding:6px 0;font-size:13px}
+.kv b{font-weight:600}
+.scan{height:150px;border-radius:12px;background:linear-gradient(160deg,#1C2A55,#0E1838);position:relative;
+  display:flex;align-items:center;justify-content:center}
+.scan .lab{background:#F5F7FC;border-radius:5px;padding:9px 16px;font-family:'JetBrains Mono',monospace;
+  font-size:12px;font-weight:600;letter-spacing:.05em}
+.scan .c{position:absolute;width:22px;height:22px;border:3px solid #4C80FB}
+.dots{display:flex;gap:4px}
+.dots i{width:8px;height:8px;border-radius:999px;background:var(--ok);display:block}
+.dots i.off{background:transparent;border:1.5px solid var(--line)}
+</style>
+</head>
+<body>
+<div class="page">
+<h1>Phase 0 — screen designs</h1>
+<p class="lede">The six screens that close the open flows, drawn against the shipped palette and the existing <code>@/components/ui</code> vocabulary — <b>Screen</b>, <b>Group</b>, <b>ListRow</b>, <b>StatusPill</b>, <b>StaleBanner</b>, <b>NoticeCard</b>. Nothing here needs a new primitive.</p>
+<p class="lede">Each one carries its verified RPC. Where the backend turned out to have a capability we hadn't designed for — catch-weight capture, reversible pick events, count leases — the screen reflects it rather than ignoring it.</p>
+
+<div class="rail">
+
+<!-- 1 · ITEM DETAIL -->
+<figure>
+<div class="frame">
+  <div class="hdr"><div class="back">‹</div><div class="ttl">Item</div><div class="sp">SKU-4471</div></div>
+  <div class="body">
+    <div>
+      <div class="h1">Roma tomatoes</div>
+      <div style="display:flex;gap:6px;margin-top:7px;flex-wrap:wrap">
+        <span class="pill p-info">Case · 6 × 5 lb</span>
+        <span class="pill p-n">Produce</span>
+      </div>
+    </div>
+
+    <div class="card" style="display:grid;grid-template-columns:repeat(3,1fr);padding:12px 0">
+      <div style="padding:0 12px;border-right:1px solid var(--soft)"><div class="s">On hand</div><div class="num" style="font-size:19px">24</div></div>
+      <div style="padding:0 12px;border-right:1px solid var(--soft)"><div class="s">Available</div><div class="num" style="font-size:19px;color:var(--ok)">18</div></div>
+      <div style="padding:0 12px"><div class="s">Committed</div><div class="num" style="font-size:19px">6</div></div>
+    </div>
+
+    <div class="card">
+      <div class="row"><span class="h2 gr">Stock by location</span><span class="s">3 bins</span></div>
+      <div class="row"><span class="gr"><span class="mono">CHILL-A03</span><span class="s">Lot RT-204 · best before 12 Oct</span></span><span class="num">14</span></div>
+      <div class="row"><span class="gr"><span class="mono">CHILL-A07</span><span class="s">Lot RT-198 · best before 4 Oct</span><span class="pill p-warn" style="margin-top:5px;display:inline-block">Pick first</span></span><span class="num">6</span></div>
+      <div class="row"><span class="gr"><span class="mono">RECEIVING-01</span><span class="s">Lot RT-211 · awaiting putaway</span></span><span class="num">4</span></div>
+    </div>
+
+    <div class="card">
+      <div class="row"><span class="h2 gr">Recent movement</span></div>
+      <div class="row"><span class="gr"><span class="t">Picked · SO-1048</span><span class="s">Today 09:14 · M. Rivera</span></span><span class="num" style="color:var(--bad)">−4</span></div>
+      <div class="row"><span class="gr"><span class="t">Received · PO-2079</span><span class="s">Today 07:40</span></span><span class="num" style="color:var(--ok)">+12</span></div>
+    </div>
+
+    <div style="display:flex;gap:9px">
+      <div class="btn q" style="flex:1"><span>Traceability</span></div>
+      <div class="btn q" style="flex:1;color:var(--bad);border-color:var(--badLine)"><span>Start recall</span></div>
+    </div>
+  </div>
+  <div class="tabs"><div><i></i>Home</div><div><i></i>My work</div><div><i></i>Activity</div><div class="on"><i></i>Search</div><div><i></i>More</div></div>
+</div>
+<figcaption><b>1 · Item detail</b>
+<span class="rpc">get_current_product_workspace(p_product_id uuid)</span>
+<p>Closes four dead ends. Lots are listed FEFO with the next-to-expire marked <em>Pick first</em> — that is the warehouse's actual question, not a date column to interpret. <strong>Cost is deliberately absent:</strong> it lives in a separate RPC, so a persona with <code>costVisibility: hidden</code> never fetches it rather than fetching and hiding.</p></figcaption>
+</figure>
+
+<!-- 2 · SALES ORDER DETAIL -->
+<figure>
+<div class="frame">
+  <div class="hdr"><div class="back">‹</div><div class="ttl">Sales order</div><div class="sp">SO-1048</div></div>
+  <div class="body">
+    <div class="stale"><span>⟳</span><span>Showing data from 11:42. Reconnecting…</span></div>
+
+    <div>
+      <div class="h1">Riverside Market</div>
+      <div style="display:flex;gap:6px;margin-top:7px"><span class="pill p-warn">2 lines short</span><span class="pill p-n">Net 30</span></div>
+    </div>
+
+    <div class="card pad">
+      <div class="kv"><span class="s">Requested</span><b>Thu 2 Oct</b></div>
+      <div class="kv"><span class="s">Route</span><b>A-12 · stop 4</b></div>
+      <div class="kv"><span class="s">Order total</span><b class="num">$2,412.80</b></div>
+    </div>
+
+    <div class="card">
+      <div class="row"><span class="h2 gr">Lines</span><span class="s">11 · 9 ready</span></div>
+      <div class="row"><span class="gr"><span class="t">Roma tomatoes</span><span class="s">6 × 5 lb · 12 cases</span></span><span class="pill p-ok">Ready</span></div>
+      <div class="row" style="background:var(--warnTint)"><span class="gr"><span class="t">Baby spinach</span><span class="s">Need 8 · 6 available</span></span><span class="pill p-warn">Short 2</span></div>
+      <div class="row" style="background:var(--warnTint)"><span class="gr"><span class="t">Green leaf lettuce</span><span class="s">Need 6 · 0 available</span></span><span class="pill p-bad">Short 6</span></div>
+      <div class="row"><span class="gr"><span class="t">Whole milk</span><span class="s">4 × 1 gal · 6 cases</span></span><span class="pill p-ok">Ready</span></div>
+    </div>
+
+    <div class="btn"><span>Resolve 2 shorts</span></div>
+    <div class="btn q"><span>Post shipment</span></div>
+  </div>
+  <div class="tabs"><div class="on"><i></i>Home</div><div><i></i>My work</div><div><i></i>Activity</div><div><i></i>Search</div><div><i></i>More</div></div>
+</div>
+<figcaption><b>2 · Sales order detail</b>
+<span class="rpc">get_current_sales_order_detail(…) + get_current_sales_order_fulfillment(…)</span>
+<p>Both RPCs already exist and were unused. Fulfilment state sits on the line, so the short is visible where the decision gets made rather than on a separate screen. The primary action counts the problem — <em>Resolve 2 shorts</em>, not <em>Actions</em>. Staleness banner shown here because this is the screen a rep opens in a van.</p></figcaption>
+</figure>
+
+<!-- 3 · RESOLVE SHORT -->
+<figure>
+<div class="frame">
+  <div class="hdr"><div class="back">‹</div><div class="ttl">Resolve short</div><div class="sp">SO-1048</div></div>
+  <div class="body">
+    <div class="note n-warn"><span>⚠</span><span>Riverside Market expects delivery Thursday. Whatever you choose, they are told today.</span></div>
+
+    <div class="card pad">
+      <div class="t">Green leaf lettuce</div>
+      <div class="s">24 ct · ordered 6 cases · none available</div>
+    </div>
+
+    <div class="ov">Choose one</div>
+    <div class="card">
+      <div class="row" style="border:2px solid var(--press);border-radius:14px">
+        <span style="width:19px;height:19px;border-radius:999px;border:2px solid var(--press);background:radial-gradient(circle,var(--press) 40%,#fff 42%)"></span>
+        <span class="gr"><span class="t">Substitute</span><span class="s">Romaine hearts · 24 ct · 8 available</span></span>
+      </div>
+      <div class="row">
+        <span style="width:19px;height:19px;border-radius:999px;border:2px solid var(--line)"></span>
+        <span class="gr"><span class="t">Backorder</span><span class="s">Next inbound Fri 3 Oct · PO-2084</span></span>
+      </div>
+      <div class="row">
+        <span style="width:19px;height:19px;border-radius:999px;border:2px solid var(--line)"></span>
+        <span class="gr"><span class="t">Cancel the remainder</span><span class="s">Order ships short, customer credited</span></span>
+      </div>
+    </div>
+
+    <div class="note n-ai"><span>✦</span><span>Riverside accepted romaine as a substitute twice in the last five weeks.</span></div>
+
+    <div class="btn"><span>Apply and notify customer</span></div>
+    <div class="s" style="text-align:center">Nothing is sent until you apply.</div>
+  </div>
+  <div class="tabs"><div class="on"><i></i>Home</div><div><i></i>My work</div><div><i></i>Activity</div><div><i></i>Search</div><div><i></i>More</div></div>
+</div>
+<figcaption><b>3 · Resolve a short</b>
+<span class="rpc">cancel_current_sales_order_remainder(p_command_key, p_sales_order_id, p_expected_order_row_version)</span>
+<p>Three outcomes, one choice, one commit. The AI line is evidence from history rather than a recommendation — it tells the rep what this customer has accepted before and lets them decide. Substitution and backorder RPCs still need confirming; cancel-remainder is verified.</p></figcaption>
+</figure>
+
+<!-- 4 · PICK TASK (catch weight) -->
+<figure>
+<div class="frame">
+  <div class="hdr"><div class="back">‹</div><div class="ttl">Pick</div><div class="sp">Wave W-118</div></div>
+  <div class="body">
+    <div>
+      <div class="ov">Task 3 of 11</div>
+      <div class="bar" style="margin-top:8px"><i style="width:27%"></i></div>
+    </div>
+
+    <div class="card pad">
+      <div class="t">Beef short rib, boneless</div>
+      <div class="s">Lot BR-884 · <span class="mono">FREEZE-B01</span></div>
+      <div style="margin-top:8px"><span class="pill p-ok">Catch weight</span></div>
+    </div>
+
+    <div class="scan">
+      <span class="c" style="top:12px;left:12px;border-right:0;border-bottom:0;border-radius:7px 0 0 0"></span>
+      <span class="c" style="top:12px;right:12px;border-left:0;border-bottom:0;border-radius:0 7px 0 0"></span>
+      <span class="c" style="bottom:12px;left:12px;border-right:0;border-top:0;border-radius:0 0 0 7px"></span>
+      <span class="c" style="bottom:12px;right:12px;border-left:0;border-top:0;border-radius:0 0 7px 0"></span>
+      <span class="lab">FREEZE-B01</span>
+    </div>
+
+    <div>
+      <div class="ov" style="margin-bottom:6px">Weight picked</div>
+      <div class="fld filled">142.6 lb <span style="margin-left:auto;color:var(--subtle);font-weight:400">across 12 cases</span></div>
+      <div class="s" style="margin-top:6px">Expected 138–146 lb. Within tolerance.</div>
+    </div>
+
+    <div class="btn"><span>Confirm pick</span></div>
+    <div class="btn q"><span>Reverse last scan</span></div>
+  </div>
+  <div class="tabs"><div><i></i>Home</div><div class="on"><i></i>My work</div><div><i></i>Activity</div><div><i></i>Search</div><div><i></i>More</div></div>
+</div>
+<figcaption><b>4 · Pick task — catch weight</b>
+<span class="rpc">record_current_catch_weight_pick(…, p_measurement jsonb, p_lock_if_valid boolean)</span>
+<p>The backend already distinguishes catch weight from case count, so the screen captures a <em>weight</em>, not a quantity, and shows the tolerance band — a picker needs to know whether 142.6 is acceptable before confirming. <strong>Reverse last scan</strong> exists because picks are reversible by event id; a mis-scan is corrected, never edited over.</p></figcaption>
+</figure>
+
+<!-- 5 · CYCLE COUNT ENTRY -->
+<figure>
+<div class="frame">
+  <div class="hdr"><div class="back">‹</div><div class="ttl">Count</div><div class="sp">CC-0042</div></div>
+  <div class="body">
+    <div class="note n-info"><span>🔒</span><span>This sheet is leased to you until 14:20. Nobody else can count it.</span></div>
+
+    <div>
+      <div class="h1">Chilled zone A</div>
+      <div class="s" style="margin-top:4px">Sheet 2 of 4 · 6 lines remaining</div>
+    </div>
+
+    <div class="card">
+      <div class="row"><span class="gr"><span class="t">Roma tomatoes</span><span class="s mono">CHILL-A03</span></span><span class="pill p-ok">Counted</span></div>
+      <div class="row" style="background:var(--tint)">
+        <span class="gr"><span class="t">Baby spinach</span><span class="s mono">CHILL-A03</span></span>
+        <div class="fld filled" style="width:92px;height:40px;justify-content:center">12</div>
+      </div>
+      <div class="row"><span class="gr"><span class="t">Whole milk</span><span class="s mono">CHILL-B02</span></span><div class="fld" style="width:92px;height:40px;justify-content:center">—</div></div>
+      <div class="row"><span class="gr"><span class="t">Butter, unsalted</span><span class="s mono">CHILL-B04</span></span><div class="fld" style="width:92px;height:40px;justify-content:center">—</div></div>
+    </div>
+
+    <div class="note n-info"><span>👁</span><span>Blind count — on-hand figures are hidden until you submit.</span></div>
+
+    <div class="btn"><span>Save and continue</span></div>
+    <div class="btn q"><span>Release this sheet</span></div>
+  </div>
+  <div class="tabs"><div><i></i>Home</div><div class="on"><i></i>My work</div><div><i></i>Activity</div><div><i></i>Search</div><div><i></i>More</div></div>
+</div>
+<figcaption><b>5 · Cycle count entry</b>
+<span class="rpc">save_current_cycle_count_entries(p_count_id, p_lease_token uuid, p_lease_fence bigint, p_entries jsonb)</span>
+<p>The lease is surfaced, not hidden — a counter should know the sheet is theirs and until when, because the alternative is two people counting the same bin and blaming the software. Blind by design: on-hand is withheld until submission, which is the only way a count means anything. <em>Release</em> hands the lease back cleanly rather than letting it expire.</p></figcaption>
+</figure>
+
+<!-- 6 · RUN A STOP -->
+<figure>
+<div class="frame">
+  <div class="hdr"><div class="back">‹</div><div class="ttl">Stop 3 of 8</div><div class="sp">A-12</div></div>
+  <div class="body">
+    <div>
+      <div class="h1">Cedar Grove Catering</div>
+      <div class="s" style="margin-top:4px">180 Peachtree St · 10:00–10:30</div>
+      <div style="margin-top:7px"><span class="pill p-info">Arrived 10:04</span></div>
+    </div>
+
+    <div class="note n-warn"><span>📍</span><span>Use the rear loading entrance.</span></div>
+
+    <div class="card">
+      <div class="row"><span class="h2 gr">Delivery checklist</span><span class="s">3 lines</span></div>
+      <div class="row"><span class="gr"><span class="t">Roma tomatoes</span><span class="s">4 cases</span></span><span class="pill p-ok">✓ Confirmed</span></div>
+      <div class="row"><span class="gr"><span class="t">Baby spinach</span><span class="s">2 cases</span></span><span class="pill p-ok">✓ Confirmed</span></div>
+      <div class="row"><span class="gr"><span class="t">Whole milk</span><span class="s">6 cases</span></span><span class="pill p-n">Tap to confirm</span></div>
+    </div>
+
+    <div class="card">
+      <div class="row"><span class="gr"><span class="t">Recipient name</span></span><span class="s">Not captured</span></div>
+      <div class="row"><span class="gr"><span class="t">Signature</span></span><span class="pill p-ok">Captured</span></div>
+      <div class="row"><span class="gr"><span class="t">Photo</span></span><span class="pill p-ok">1 attached</span></div>
+    </div>
+
+    <div class="btn"><span>Complete stop</span></div>
+    <div class="btn q" style="color:var(--warnInk);border-color:var(--warnLine)"><span>Report a shortage</span></div>
+  </div>
+  <div class="tabs"><div><i></i>Home</div><div class="on"><i></i>My work</div><div><i></i>Activity</div><div><i></i>Search</div><div><i></i>More</div></div>
+</div>
+<figcaption><b>6 · Run a stop</b>
+<span class="rpc">transition_current_delivery_route_exact(…) + load_current_route_shipment_exact(…)</span>
+<p>Proof of delivery is shown as <em>state</em>, not a form — signature captured, photo attached, recipient missing — so a driver can see what is still outstanding before tapping complete. This is the screen where the known P2 bites: today it collects and submits nowhere, which is worse than missing, because the driver believes the delivery is recorded.</p></figcaption>
+</figure>
+
+</div>
+</div>
+</body>
+</html>

@@ -24,9 +24,8 @@ import * as workos from '@/features/auth/workos';
  * that's wired, this stays the lighter screen that only uses data this app
  * already has, rather than showing a name that isn't real.
  *
- * Biometric unlock protects a real WorkOS refresh token — meaningless in
- * demo mode, which has no such token — so the toggle only renders in live
- * mode. **Only the opt-in setting is wired here.** Actually showing
+ * Biometric unlock protects the real WorkOS refresh token. **Only the opt-in
+ * setting is wired here.** Actually showing
  * `UnlockScreen` on app resume — the other half of "biometric unlock" — is
  * deliberately not done this pass: the delivered README itself flags an
  * open policy question ("should this be disallowed entirely for personas

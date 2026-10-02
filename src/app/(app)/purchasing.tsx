@@ -99,7 +99,7 @@ export default function Purchasing() {
                           </Text>
                         )
                       }
-                      onPress={() => router.push(`/(app)/routine/${po.id}`)}
+                      onPress={() => router.push(`/(app)/purchasing/${po.id}`)}
                     />
                   ))}
                 </Group>
