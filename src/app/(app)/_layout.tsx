@@ -1,6 +1,6 @@
-import { router, Stack, usePathname } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import React from 'react';
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
 
 import { COLORS } from '@/components/ui';
 import { CopilotBlob } from '@/components/CopilotBlob';
@@ -42,7 +42,6 @@ export default function AppLayout() {
         <Stack.Screen name="sales-order/[id]/short" options={{ title: 'Resolve a short' }} />
         <Stack.Screen name="purchasing/[id]" options={{ title: 'Purchase order' }} />
         <Stack.Screen name="vendor/[id]" options={{ title: 'Vendor' }} />
-        <Stack.Screen name="ai" options={{ title: 'Copilot' }} />
         <Stack.Screen name="receiving/documents" options={{ title: 'Delivery documents' }} />
         <Stack.Screen name="receiving/document/[id]" options={{ title: 'Review document' }} />
       </Stack>
@@ -57,7 +56,6 @@ const ROUTE_LABELS: Record<string, string> = {
   '/activity': 'Activity',
   '/search': 'Search',
   '/more': 'Workspaces',
-  '/ai': 'Foodline AI',
   '/sales': 'Sales & Customers',
   '/inventory': 'Inventory',
   '/purchasing': 'Purchasing',
@@ -83,15 +81,19 @@ function GlobalCopilot() {
   const pathname = usePathname();
   const contextLabel = ROUTE_LABELS[pathname] ?? 'Foodline AI';
 
+  // The AI tab is the Copilot; a floating copy of it on top would be redundant.
   if (pathname === '/ai') return null;
 
   return (
     <CopilotBlob
       contextLabel={contextLabel}
       onRunSuggestion={() => {}}
-      onAsk={(prompt) =>
-        router.push({ pathname: '/(app)/(tabs)/ai', params: { prompt } } as never)
-      }
+      onAsk={() => {
+        // The blob's own sheet has no reply channel — it closes on send. No
+        // Copilot backend exists yet either, so this says so plainly rather
+        // than fabricating a reply or letting the question vanish silently.
+        Alert.alert('Not connected yet', "The Copilot isn't wired to a live AI service in this build.");
+      }}
     />
   );
 }

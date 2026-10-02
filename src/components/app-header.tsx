@@ -51,6 +51,15 @@ export function AppHeader({
         </View>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="All workspaces"
+          onPress={() => router.push('/(app)/(tabs)/more')}
+          hitSlop={8}
+          testID="header-workspaces"
+        >
+          <Feather name="grid" size={22} color={COLORS.ink} />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
           accessibilityLabel="Account"
           onPress={() => router.push('/account')}
           hitSlop={8}
