@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FoodlineButton } from '../components/FoodlineButton';
 import { StepProgress, type Step } from '../components/primitives';
@@ -36,34 +37,36 @@ export function SignInScreen({ onSignIn, busy = false, error }: SignInScreenProp
       end={{ x: 0.8, y: 1 }}
       style={styles.dark}
     >
-      <View style={styles.signInBody}>
-        <Beacon />
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+        <View style={styles.signInBody}>
+          <Beacon />
 
-        <Text style={styles.wordmark}>Foodline AI</Text>
-        <Text style={styles.tagline}>
-          The system of record, intelligence and action for food distribution.
-        </Text>
-      </View>
+          <Text style={styles.wordmark}>Foodline AI</Text>
+          <Text style={styles.tagline}>
+            The system of record, intelligence and action for food distribution.
+          </Text>
+        </View>
 
-      <View style={styles.signInFoot}>
-        {error && (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        )}
+        <View style={styles.signInFoot}>
+          {error && (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
 
-        <FoodlineButton
-          label="Sign in"
-          busy={busy}
-          onPress={onSignIn}
-          accessibilityHint="Opens a secure sign-in page"
-          testID="sign-in"
-        />
+          <FoodlineButton
+            label="Sign in with WorkOS"
+            busy={busy}
+            onPress={onSignIn}
+            accessibilityHint="Opens the secure Foodline sign-in page"
+            testID="sign-in"
+          />
 
-        <Text style={styles.secure}>
-          Sign-in opens a secure page. Your password is never entered in this app.
-        </Text>
-      </View>
+          <Text style={styles.secure}>
+            Sign-in opens a secure page. Your password is never entered in this app.
+          </Text>
+        </View>
+      </SafeAreaView>
     </LinearGradient>
   );
 }
@@ -215,6 +218,7 @@ function Beacon() {
 
 const styles = StyleSheet.create({
   dark: { flex: 1, paddingHorizontal: 28 },
+  safeArea: { flex: 1 },
   splash: { alignItems: 'center', justifyContent: 'center', gap: 20 },
 
   signInBody: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 18 },
@@ -228,7 +232,7 @@ const styles = StyleSheet.create({
     maxWidth: 300,
   },
 
-  signInFoot: { paddingBottom: 44, gap: 12 },
+  signInFoot: { paddingBottom: 24, gap: 12 },
   secure: { ...typeScale.small, color: '#96A8CE', textAlign: 'center' },
   errorBox: {
     padding: 13,

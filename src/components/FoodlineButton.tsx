@@ -156,6 +156,7 @@ const styles = StyleSheet.create({
   },
   fill: {
     flex: 1,
+    minHeight: space.tap + 6,
     justifyContent: 'center',
     paddingHorizontal: 20,
     borderRadius: radius.pill,
