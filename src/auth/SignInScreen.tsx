@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -38,6 +39,15 @@ export function SignInScreen({ onSignIn, busy = false, error }: SignInScreenProp
       style={styles.dark}
     >
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+        <View style={styles.brandLockup} accessibilityLabel="Foodline">
+          <Image
+            source={require('../../assets/foodline-logo.png')}
+            style={styles.brandLogo}
+            contentFit="contain"
+          />
+          <Text style={styles.brandName}>Foodline</Text>
+        </View>
+
         <View style={styles.signInBody}>
           <Beacon />
 
@@ -220,6 +230,16 @@ const styles = StyleSheet.create({
   dark: { flex: 1, paddingHorizontal: 28 },
   safeArea: { flex: 1 },
   splash: { alignItems: 'center', justifyContent: 'center', gap: 20 },
+
+  brandLockup: {
+    paddingTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  brandLogo: { width: 44, height: 44 },
+  brandName: { fontSize: 18, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.2 },
 
   signInBody: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 18 },
   bootBody: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 18 },

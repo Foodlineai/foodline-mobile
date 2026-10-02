@@ -1,6 +1,6 @@
 {
   "name": "foodline-mobile",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "main": "expo-router/entry",
   "private": true,
   "scripts": {
