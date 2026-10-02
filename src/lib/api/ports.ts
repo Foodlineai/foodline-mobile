@@ -21,6 +21,7 @@ import type { PurchaseOrderDetail } from '@/features/purchasing/order-detail/typ
 import type { DraftedPurchaseOrder } from '@/features/routines/types';
 import type { SalesOrderDetail } from '@/features/sales/order-detail/types';
 import type { SalesOrderFulfillment } from '@/features/sales/order-detail/fulfillment-types';
+import type { ReviewDetail, ReviewOrderContext, ReviewSummary } from '@/features/receiving/documents/types';
 import type { ShipmentDraft, ShipmentTarget } from '@/features/shipments/types';
 import type { VendorDetail } from '@/features/vendors/types';
 
@@ -169,6 +170,39 @@ export interface FoodlineApi {
         inputMethod: 'scan' | 'manual';
         idempotencyKey: string;
       }
+    ): Promise<void>;
+  };
+  documents: {
+    /** `list_governed_receiving_document_reviews` — confirmed against the live ERP source 2 Oct. */
+    list(companyId: UUID): Promise<ReviewSummary[]>;
+    /**
+     * `get_governed_receiving_document_review`, plus the order context the
+     * corrections need from `get_purchase_order_workspace`. The order fetch
+     * can fail independently (it needs `purchasing.cost_read`) — that comes
+     * back as `orderError`, not a thrown error, so the document still shows.
+     */
+    get(
+      companyId: UUID,
+      reviewId: UUID
+    ): Promise<{ detail: ReviewDetail; order: ReviewOrderContext | null; orderError: string | null } | null>;
+    /** `save_governed_receiving_document_review` — persists corrections server-side; writes nothing else. */
+    saveCorrections(
+      companyId: UUID,
+      input: { reviewId: UUID; expectedRowVersion: number; corrections: Record<string, unknown>; idempotencyKey: string }
+    ): Promise<{ rowVersion: number }>;
+    /**
+     * `materialize_and_approve_governed_receiving_document_review` — creates
+     * the goods receipt from the **saved** corrections. Requires status
+     * `in-review`; the server ignores anything on the device.
+     */
+    approve(
+      companyId: UUID,
+      input: { reviewId: UUID; expectedRowVersion: number; idempotencyKey: string }
+    ): Promise<{ goodsReceiptId: string | null }>;
+    /** `reject_governed_receiving_document_review` (4-arg form, with a reason). */
+    reject(
+      companyId: UUID,
+      input: { reviewId: UUID; expectedRowVersion: number; reason: string; idempotencyKey: string }
     ): Promise<void>;
   };
   customers: {
