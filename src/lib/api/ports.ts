@@ -21,6 +21,8 @@ import type { PurchaseOrderDetail } from '@/features/purchasing/order-detail/typ
 import type { DraftedPurchaseOrder } from '@/features/routines/types';
 import type { SalesOrderDetail } from '@/features/sales/order-detail/types';
 import type { SalesOrderFulfillment } from '@/features/sales/order-detail/fulfillment-types';
+import type { Interaction, TurnInput, TurnResult } from '@/features/copilot/types';
+import type { VoiceStartResult } from '@/features/copilot/voice/types';
 import type { ReviewDetail, ReviewOrderContext, ReviewSummary } from '@/features/receiving/documents/types';
 import type { ShipmentDraft, ShipmentTarget } from '@/features/shipments/types';
 import type { VendorDetail } from '@/features/vendors/types';
@@ -171,6 +173,23 @@ export interface FoodlineApi {
         idempotencyKey: string;
       }
     ): Promise<void>;
+  };
+  copilot: {
+    /**
+     * `POST /api/mobile/copilot` on the ERP (Foodlineai/frontend PR #314 —
+     * open, not deployed as of 2 Oct). The ERP owns the model, tools and
+     * action policy; the app sends messages + page context and renders the
+     * reply. See `features/copilot/client.ts`.
+     */
+    turn(companyId: UUID, input: TurnInput): Promise<TurnResult>;
+    /** `POST /api/mobile/copilot/action` `kind: 'review'` — turns answers into a reviewable proposal. */
+    reviewAction(companyId: UUID, input: { workflow: string; answers: Record<string, string> }): Promise<Interaction>;
+    /** `POST /api/mobile/copilot/action` `kind: 'execute'` — commits one proposal; the server token is the authority. */
+    executeAction(companyId: UUID, proposalToken: string): Promise<Interaction>;
+  };
+  voice: {
+    /** Starts an inline voice session. Unavailable (with a reason) until the ERP exposes a mobile voice route. */
+    start(companyId: UUID, input: { pathname: string }): Promise<VoiceStartResult>;
   };
   documents: {
     /** `list_governed_receiving_document_reviews` — confirmed against the live ERP source 2 Oct. */

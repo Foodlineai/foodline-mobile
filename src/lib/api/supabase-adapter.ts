@@ -26,6 +26,7 @@ import type {
 } from './types';
 import * as workos from '@/features/auth/workos';
 import { toCustomerDetail } from '@/features/customers/adapter';
+import { liveExecuteAction, liveReviewAction, liveTurn } from '@/features/copilot/client';
 import { toItemDetail } from '@/features/items/detail/adapter';
 import { toReviewDetail, toReviewOrderContext, toReviewSummary } from '@/features/receiving/documents/adapter';
 import type { ReviewSummary } from '@/features/receiving/documents/types';
@@ -573,6 +574,21 @@ export const supabaseApi: FoodlineApi = {
     async detail(companyId, vendorId) {
       const payload = await call(companyId, 'vendor_read', { p_company_id: companyId, p_vendor_id: vendorId });
       return toVendorDetail(payload as Row);
+    },
+  },
+
+  copilot: {
+    turn: (companyId, input) => liveTurn(companyId, input),
+    reviewAction: (companyId, input) => liveReviewAction(companyId, input),
+    executeAction: (companyId, proposalToken) => liveExecuteAction(companyId, proposalToken),
+  },
+
+  voice: {
+    async start() {
+      // The ERP's web voice is browser WebRTC with a server-minted OpenAI
+      // Realtime secret; PR #314 exposes no mobile route for it, and a native
+      // WebRTC client isn't in this app. Not inventing an endpoint.
+      return { available: false, reason: "Voice isn't available yet — the ERP has no mobile voice route." };
     },
   },
 
