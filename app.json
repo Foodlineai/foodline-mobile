@@ -27,10 +27,11 @@
     "android": {
       "package": "ai.foodline.mobile",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png",
         "backgroundColor": "#008CD2"
       },
-      "edgeToEdgeEnabled": true,
       "permissions": [
         "android.permission.CAMERA"
       ]
