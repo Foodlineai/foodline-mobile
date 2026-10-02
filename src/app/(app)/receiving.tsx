@@ -3,7 +3,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Crypto from 'expo-crypto';
 import * as Haptics from 'expo-haptics';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, RefreshControl, Text, View } from 'react-native';
+import { FlatList, RefreshControl, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
@@ -244,6 +244,7 @@ export default function Receiving() {
       lastScan={lastScan}
       submitting={submit.isPending}
       onScan={() => setScanning(true)}
+      onWedgeScan={(data) => void onBarcode({ data, type: 'hardware_wedge' })}
       onEnd={() => close.mutate(session)}
       ending={close.isPending}
     />
@@ -300,6 +301,7 @@ function ScanQueue({
   lastScan,
   submitting,
   onScan,
+  onWedgeScan,
   onEnd,
   ending,
 }: {
@@ -318,11 +320,25 @@ function ScanQueue({
   lastScan: string | null;
   submitting: boolean;
   onScan: () => void;
+  onWedgeScan: (data: string) => void;
   onEnd: () => void;
   ending: boolean;
 }) {
   const [permission, requestPermission] = useCameraPermissions();
+  const [wedgeValue, setWedgeValue] = useState('');
+  const wedgeInput = useRef<TextInput>(null);
   const remaining = (queue.data ?? []).filter((t) => t.remainingBaseQuantity > 0).length;
+
+  useEffect(() => {
+    wedgeInput.current?.focus();
+  }, []);
+
+  function submitWedgeValue() {
+    const value = wedgeValue.trim();
+    setWedgeValue('');
+    if (value) onWedgeScan(value);
+    requestAnimationFrame(() => wedgeInput.current?.focus());
+  }
 
   return (
     <Screen>
@@ -350,6 +366,22 @@ function ScanQueue({
         )}
 
         <View className="gap-2 px-5 pb-4">
+          <TextInput
+            ref={wedgeInput}
+            value={wedgeValue}
+            onChangeText={setWedgeValue}
+            onSubmitEditing={submitWedgeValue}
+            onBlur={() => requestAnimationFrame(() => wedgeInput.current?.focus())}
+            autoCapitalize="none"
+            autoCorrect={false}
+            blurOnSubmit={false}
+            caretHidden
+            contextMenuHidden
+            showSoftInputOnFocus={false}
+            accessible={false}
+            style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }}
+          />
+          <Text className="text-xs text-ink-muted">Hardware scanner ready · scan a code and press Enter</Text>
           {lastScan ? <Text className="text-xs text-ink-muted">Last scan: {lastScan}</Text> : null}
           {message ? <Text className="text-sm text-danger">{message}</Text> : null}
           {permission?.granted ? (
