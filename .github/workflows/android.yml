@@ -28,11 +28,15 @@ jobs:
     name: Build debug APK
     needs: quality
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # Raised from 45 while the single-ABI fix below is being verified — a slow
+    # run should report a real failure, not an ambiguous cancellation. Target
+    # is still well under 15 minutes once this lands; revisit if it does.
+    timeout-minutes: 60
     env:
       EXPO_PUBLIC_DEMO_MODE: '1'
       EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
       EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'placeholder' }}
+      NODE_ENV: production
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -52,6 +56,13 @@ jobs:
 
       - name: Gradle build
         working-directory: android
+        # android/ is CNG-generated above, not committed, so the one-ABI
+        # restriction is set here rather than in a gradle.properties file that
+        # doesn't exist in the repo. Every handset anyone demos on is
+        # arm64-v8a; the other three ABIs were quadrupling native build time
+        # and are why run #2 hit the job timeout mid assembleDebug.
+        env:
+          ORG_GRADLE_PROJECT_reactNativeArchitectures: arm64-v8a
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
       - uses: actions/upload-artifact@v4
