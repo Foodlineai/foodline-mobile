@@ -13,7 +13,7 @@ concurrency:
 jobs:
   quality:
     name: Typecheck & lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,39 +23,63 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint --if-present
+      - run: npm run check:production
 
   apk:
-    name: Build debug APK
+    name: Build standalone APK
     needs: quality
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
     env:
-      EXPO_PUBLIC_DEMO_MODE: '1'
-      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
-      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'placeholder' }}
+      NODE_ENV: production
+      EXPO_PUBLIC_APP_ENV: production
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      EXPO_PUBLIC_WORKOS_CLIENT_ID: ${{ secrets.EXPO_PUBLIC_WORKOS_CLIENT_ID }}
+      EXPO_PUBLIC_WORKOS_AUTH_DOMAIN: https://api.workos.com
+      EXPO_PUBLIC_WORKOS_REDIRECT_URI: https://erp.foodlineai.com/api/auth/callback
+      EXPO_PUBLIC_ERP_BASE_URL: https://erp.foodlineai.com
+      ORG_GRADLE_PROJECT_reactNativeArchitectures: arm64-v8a
+      GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
 
       - run: npm ci
+
+      - name: Exclude development modules from release autolinking
+        run: node scripts/configure-release-autolinking.mjs
+
+      - name: Verify live configuration
+        run: |
+          test -n "$EXPO_PUBLIC_SUPABASE_URL"
+          test -n "$EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+          test -n "$EXPO_PUBLIC_WORKOS_CLIENT_ID"
+          test "$EXPO_PUBLIC_SUPABASE_URL" = "https://fzavogttmmyyeuguvmry.supabase.co"
+          case "$EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY" in
+            *YOUR*|*your*|*placeholder*|*PLACEHOLDER*) exit 1 ;;
+          esac
+          case "$EXPO_PUBLIC_WORKOS_CLIENT_ID" in
+            *YOUR*|*your*|*placeholder*|*PLACEHOLDER*) exit 1 ;;
+          esac
 
       - name: Generate native Android project
         run: npx expo prebuild --platform android --clean --no-install
 
       - name: Gradle build
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: ./gradlew assembleRelease --no-daemon --stacktrace --max-workers=2 -PreactNativeArchitectures=arm64-v8a -x lintVitalAnalyzeRelease
 
       - uses: actions/upload-artifact@v4
         with:
-          name: foodline-debug-apk-${{ github.sha }}
-          path: android/app/build/outputs/apk/debug/*.apk
+          name: foodline-live-v0.5.1-${{ github.sha }}
+          path: android/app/build/outputs/apk/release/*.apk
           retention-days: 14

@@ -1,4 +1,6 @@
 import { Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 
@@ -26,8 +28,15 @@ export function AppHeader({
       onPress={onPressOrg}
       disabled={!onPressOrg}
       hitSlop={8}
-      className="flex-row items-center gap-1.5"
+      className="flex-row items-center gap-2"
     >
+      <LinearGradient
+        colors={['#7C9CF0', '#4C80FB', '#1E3A8A']}
+        locations={[0, 0.45, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{ height: 28, width: 28, borderRadius: 9 }}
+      />
       <Text className="text-2xl font-bold text-ink">Foodline AI</Text>
       {onPressOrg ? <Feather name="chevron-down" size={20} color={COLORS.ink} /> : null}
     </Pressable>
@@ -40,7 +49,23 @@ export function AppHeader({
           {name}
           {inlinePill ? <ContextPill label={context} /> : null}
         </View>
-        <Avatar initials={initials} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="All workspaces"
+          onPress={() => router.push('/(app)/(tabs)/more')}
+          hitSlop={8}
+          testID="header-workspaces"
+        >
+          <Feather name="grid" size={22} color={COLORS.ink} />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Account"
+          onPress={() => router.push('/account')}
+          hitSlop={8}
+        >
+          <Avatar initials={initials} />
+        </Pressable>
       </View>
       {inlinePill ? null : <ContextPill label={context} />}
     </View>

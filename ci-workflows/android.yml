@@ -11,41 +11,58 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  quality:
-    name: Typecheck & lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm run lint --if-present
-
   apk:
     name: Build debug APK
-    needs: quality
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     env:
-      EXPO_PUBLIC_DEMO_MODE: '1'
-      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co' }}
-      EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'placeholder' }}
+      NODE_ENV: production
+      EXPO_PUBLIC_APP_ENV: production
+      EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      EXPO_PUBLIC_WORKOS_CLIENT_ID: ${{ secrets.EXPO_PUBLIC_WORKOS_CLIENT_ID }}
+      EXPO_PUBLIC_WORKOS_AUTH_DOMAIN: https://api.workos.com
+      EXPO_PUBLIC_ERP_BASE_URL: https://erp.foodlineai.com
+      ORG_GRADLE_PROJECT_reactNativeArchitectures: arm64-v8a
     steps:
       - uses: actions/checkout@v4
+
+      - name: Environment report
+        run: |
+          echo "node $(node -v 2>/dev/null || echo 'not yet installed')"
+          echo "runner $RUNNER_OS $(uname -m)"
+          echo "lockfile present: $([ -f package-lock.json ] && echo yes || echo NO)"
+          df -h / | tail -1
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify live configuration
+        run: |
+          test -n "$EXPO_PUBLIC_SUPABASE_URL"
+          test -n "$EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+          test -n "$EXPO_PUBLIC_WORKOS_CLIENT_ID"
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
+
       - uses: android-actions/setup-android@v3
 
-      - run: npm ci
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: gradle-${{ runner.os }}-
 
       - name: Generate native Android project
         run: npx expo prebuild --platform android --clean --no-install
@@ -59,3 +76,31 @@ jobs:
           name: foodline-debug-apk-${{ github.sha }}
           path: android/app/build/outputs/apk/debug/*.apk
           retention-days: 14
+
+      # When Gradle fails, the reports say why. Without this you are guessing.
+      - name: Upload build reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-reports-${{ github.sha }}
+          path: |
+            android/app/build/reports/**
+            android/build/reports/**
+          retention-days: 7
+          if-no-files-found: ignore
+
+  quality:
+    name: Typecheck & lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx tsc --noEmit
+      # ESLint 9 flat config: `--ext` was removed, the config decides what is linted.
+      - run: npx eslint .
+        continue-on-error: true

@@ -1,3 +1,18 @@
+# foodline-mobile — agent rules
+
+**Before touching anything, read the operating brief** in the Foodline AI project:
+`claude/00-agent-handoff-operating-brief.md`. It holds the lane assignments, the three-repo
+map, the backend contract and the live blockers. This file covers what is specific to this repo.
+
+**Your lane is B — mobile product.** Do not touch `Mehul192001/foodline-android`; it is a
+separate Kotlin demo app that is frozen. See §2 and §3 of the brief.
+
+**Coordination lives in `~/Documents/foodline-cowork`** — read `BOARD.md` and the other
+agents' `status/*.md` before you touch anything, and write your own status file naming the
+files you claim *before* you start. Your full handoff is in `handoffs/`.
+
+---
+
 This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.
 
 ## Expo has changed — do not trust your training data
@@ -79,10 +94,16 @@ If that file changes, `src/lib/supabase.ts` here probably needs the same change.
 The ERP already has a handheld API, which is the reason this app exists:
 
 ```
-start_scanner_session → get_governed_scanner_receiving_queue
-  → claim_scanner_receiving_task → submit_scanner_scan
-  → save_governed_scanner_receiving_capture → close_scanner_session
+list_receiving_location_warehouses   pick the warehouse (no args; company header scopes it)
+get_governed_receiving_dock          pick the delivery (no args; filtered client-side by warehouse)
+start_scanner_session                claim the work
+get_governed_scanner_receiving_queue what is still owed
+submit_scanner_scan                  record each case
+save_governed_scanner_receiving_capture / close_scanner_session
 ```
+
+Several of these take `Args: never` — they are scoped entirely by the WorkOS
+JWT plus the `x-erp-company-id` header. Do not invent parameters for them.
 
 Every mutation carries **row versions** (optimistic concurrency) and an
 **idempotency key**. Preserve both. A dropped connection mid-scan must never
@@ -99,7 +120,6 @@ Screens never import `@supabase/supabase-js`. They call `api` from `@/lib/api`.
 src/app/**                       screens — expo-router, presentation + local state only
 src/lib/api/ports.ts             the interface every backend must satisfy
 src/lib/api/supabase-adapter.ts  the live implementation (WorkOS token + ERP RPCs)
-src/lib/api/demo-adapter.ts      bundled fixtures, zero network
 src/lib/api/types.ts             OUR domain types, not raw RPC payloads
 src/features/auth/workos.ts      AuthKit PKCE, tokens in SecureStore
 ```
@@ -110,13 +130,6 @@ has a `snake_case` field name in it, that is a bug.
 **Everything is an RPC.** There are no direct table reads or writes — the ERP
 retired that path. Business rules must never be duplicated between the web ERP
 and this app; that divergence is the failure mode we are explicitly designing against.
-
-## Demo mode
-
-`EXPO_PUBLIC_DEMO_MODE=1` runs the entire app on fixtures in `demo-adapter.ts`.
-Every screen must work in demo mode — it is how the app gets demoed on a plane,
-in a customer's warehouse, and in any environment where Supabase is unreachable.
-When you add a screen, add its fixtures.
 
 ## The designs are the spec
 
@@ -136,6 +149,29 @@ Purchasing, Inventory Employee, Routes/Driver. Build to them.
   everything. Gate on the `permissionKeys` in the session, never on a hardcoded role
   string.
 - Icons are `@expo/vector-icons` Feather, to match the line weight in the designs.
+
+## Screen map
+
+Every module screen follows the same skeleton from the mockups: `AppHeader`
+(context pill) → `ModuleHero` or a big title → "needs attention" list →
+supporting list → AI card. The `<Module> tools` directories are all one screen,
+`app/(app)/tools/[module].tsx`, driven by `features/workspaces/tools-catalog.ts`
+— add a tool there, not in a new file.
+
+| Route | Mockup | Live RPCs |
+|---|---|---|
+| `(tabs)/index` Home | 01 left | `get_current_commercial_dashboard` |
+| `(tabs)/more` All workspaces | 01 right | — (static catalog) |
+| `sales` | 02 left | `get_current_sales_orders_workspace` |
+| `purchasing` | 03 left | `purchase_order_directory_snapshot` |
+| `inventory` | 04 left | `product_directory_snapshot` |
+| `routes` | 05 left | `get_current_delivery_route_workspace` |
+| `stop/[id]` | 05 right | `get_current_delivery_stop_detail` |
+| `receiving` | — | the scanner subsystem (see above) |
+| `tools/[module]` | 02/03/04 right | — (static catalog) |
+
+Unbuilt destinations render as "Coming soon" rather than being hidden, so the
+demo shows the real shape of the product and nothing dead-ends silently.
 
 ## Conventions
 

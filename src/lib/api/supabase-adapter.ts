@@ -1,20 +1,60 @@
 import { getSupabase } from '../supabase';
+import { z } from 'zod';
 import type { FoodlineApi } from './ports';
 import type {
   ActionItem,
   ActivityLine,
-  Company,
+  Customer,
+  DeliveryRoute,
+  DeliveryStop,
+  DockReceipt,
   HomeSummary,
   HubMetric,
   Item,
   PurchaseOrder,
+  PurchasingSummary,
   ReceivingTask,
+  ReceivingWarehouse,
+  SalesOrder,
+  SalesSummary,
   ScannerSession,
   Session,
+  ShipmentLine,
   StockStatus,
+  StopDetail,
   UUID,
 } from './types';
 import * as workos from '@/features/auth/workos';
+import { toCustomerDetail } from '@/features/customers/adapter';
+import { liveExecuteAction, liveReviewAction, liveTurn } from '@/features/copilot/client';
+import { toItemDetail } from '@/features/items/detail/adapter';
+import {
+  confirmSavedCycleCountEntries,
+  confirmSubmittedCycleCount,
+  toCycleCountLease,
+  toCycleCountSheetWorkspace,
+  toCycleCountWorkspace,
+} from '@/features/inventory/cycle-counts/adapter';
+import {
+  toReviewDetail,
+  toReviewOrderContext,
+  toReviewSummary,
+} from '@/features/receiving/documents/adapter';
+import type { ReviewSummary } from '@/features/receiving/documents/types';
+import { toPurchaseOrderDetail } from '@/features/purchasing/order-detail/adapter';
+import {
+  confirmPurchaseOrderPreview,
+  confirmSavedPurchaseOrder,
+  confirmSubmittedPurchaseOrder,
+  draftOnlyResult,
+  purchaseOrderCreationError,
+  toPurchaseOrderCreationWorkspace,
+  toPurchaseOrderRpcInput,
+} from '@/features/purchasing/creation-adapter';
+import type { DraftedPurchaseOrder } from '@/features/routines/types';
+import { toSalesOrderDetail, toSalesOrderFulfillment } from '@/features/sales/order-detail/adapter';
+import type { ShipmentDraft } from '@/features/shipments/types';
+import { toVendorDetail, toVendorListItems } from '@/features/vendors/adapter';
 
 /**
  * Live adapter. Every call is an RPC — there are no direct table reads, because
@@ -58,15 +98,23 @@ function deriveStatus(onHand: number, par: number | null): StockStatus {
   return 'ok';
 }
 
+/** `health` enum confirmed on `product_directory_snapshot`'s row payload —
+ * a single combined status, not independent below-par/expiring flags. */
+const EXPIRING_HEALTH = new Set(['expiring_lot', 'margin_and_expiry']);
+
 function toItem(r: Row): Item {
   const onHand = num(r.on_hand ?? r.quantity_on_hand);
   const parLevel = numOrNull(r.par_level ?? r.target_level);
+  const baseUom = r.baseUom as Row | undefined;
+  const warehouseBalances = Array.isArray(r.warehouseBalances) ? (r.warehouseBalances as Row[]) : [];
+  const preferredBin = (warehouseBalances[0]?.preferredBin as Row | undefined) ?? undefined;
+  const health = str(r.health);
   return {
     id: str(r.id ?? r.product_id),
     sku: str(r.sku ?? r.product_sku),
-    name: str(r.name ?? r.product_name),
+    name: str(r.displayName ?? r.name ?? r.product_name),
     category: (r.category as string | null) ?? null,
-    uom: str(r.uom_code ?? r.uom, 'EA'),
+    uom: str(baseUom?.code ?? r.uom_code ?? r.uom, 'EA'),
     onHand,
     onOrder: num(r.on_order ?? r.quantity_on_order),
     parLevel,
@@ -74,6 +122,9 @@ function toItem(r: Row): Item {
     lastCost: numOrNull(r.last_cost ?? r.unit_cost),
     primaryVendorName: (r.primary_vendor_name as string | null) ?? null,
     status: (r.status as StockStatus) ?? deriveStatus(onHand, parLevel),
+    catchWeight: r.catchWeight === true,
+    binLocation: preferredBin ? str(preferredBin.code) || null : null,
+    expiringSoon: EXPIRING_HEALTH.has(health),
   };
 }
 
@@ -114,11 +165,73 @@ function toReceivingTask(r: Row): ReceivingTask {
   };
 }
 
+function toWarehouse(r: Row): ReceivingWarehouse {
+  return {
+    id: str(r.id ?? r.warehouse_id),
+    code: str(r.code ?? r.warehouse_code),
+    name: str(r.name ?? r.warehouse_name),
+    receivingBinId: (r.receiving_bin_id as string | null) ?? null,
+  };
+}
+
+function toDockReceipt(r: Row): DockReceipt {
+  return {
+    goodsReceiptId: str(r.goods_receipt_id ?? r.id),
+    documentNumber: str(r.document_number ?? r.goods_receipt_number ?? r.receipt_document_number),
+    warehouseId: str(r.warehouse_id),
+    vendorName: str(r.vendor_name),
+    purchaseOrderNumber: (r.purchase_order_number as string | null) ?? null,
+    status: (r.status as DockReceipt['status']) ?? 'open',
+    rowVersion: num(r.row_version ?? r.goods_receipt_row_version ?? r.receipt_row_version, 1),
+    openLineCount: numOrNull(r.open_line_count ?? r.remaining_line_count),
+    arrivedAt: (r.arrived_at as string | null) ?? null,
+  };
+}
+
+function toSalesOrder(r: Row): SalesOrder {
+  return {
+    id: str(r.id ?? r.sales_order_id),
+    number: str(r.document_number ?? r.number ?? r.order_number),
+    customerId: str(r.customer_id),
+    customerName: str(r.customer_name),
+    state: (r.state as SalesOrder['state']) ?? (r.status as SalesOrder['state']) ?? 'confirmed',
+    attention: (r.attention as string | null) ?? (r.attention_reason as string | null) ?? null,
+    total: numOrNull(r.total ?? r.total_amount),
+    promisedFor: (r.promised_for as string | null) ?? (r.promised_at as string | null) ?? null,
+  };
+}
+
+function toCustomer(r: Row): Customer {
+  return {
+    id: str(r.id ?? r.customer_id),
+    name: str(r.name ?? r.customer_name),
+    subtitle: (r.subtitle as string | null) ?? (r.city as string | null) ?? null,
+  };
+}
+
+/** `r` is one entry of `get_current_delivery_route_workspace`'s `routes[].stops[]` — confirmed camelCase. */
+function toStop(r: Row): DeliveryStop {
+  const windowStart = str(r.deliveryWindowStart);
+  const windowEnd = str(r.deliveryWindowEnd);
+  return {
+    id: str(r.id),
+    sequence: num(r.sequence),
+    customerName: str(r.customerName),
+    address: str(r.address),
+    windowLabel: windowStart && windowEnd ? `${windowStart}–${windowEnd}` : null,
+    state: (r.status as DeliveryStop['state']) ?? 'planned',
+    rowVersion: num(r.rowVersion, 1),
+  };
+}
+
 // The generated Database type is huge and RPC arg types are exact; the app
 // intentionally goes through one loosely-typed call helper rather than
 // threading 343 signatures through the UI. Payload shapes are validated by the
 // mappers above, which is where a schema change should surface.
-type Rpc = (name: string, args?: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
+type Rpc = (
+  name: string,
+  args?: Record<string, unknown>
+) => Promise<{ data: unknown; error: { message: string } | null }>;
 
 async function call(companyId: UUID | null, name: string, args?: Record<string, unknown>): Promise<unknown> {
   const client = getSupabase(companyId);
@@ -127,10 +240,37 @@ async function call(companyId: UUID | null, name: string, args?: Record<string, 
   return data;
 }
 
-function toSession(payload: unknown): Session {
+const companySchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().trim().min(1),
+  slug: z.string().trim().min(1),
+  roleKey: z.string().trim().min(1),
+  permissionKeys: z.array(z.string().trim().min(1)),
+  authorizationVersion: z.string().regex(/^[1-9][0-9]*$/),
+});
+
+const sessionSchema = z
+  .object({
+    actorId: z.string().uuid(),
+    companyId: z.string().uuid().nullable(),
+    companies: z.array(companySchema),
+  })
+  .superRefine((session, context) => {
+    const ids = session.companies.map((company) => company.id);
+    if (new Set(ids).size !== ids.length) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: 'Duplicate company access entries' });
+    }
+    if (session.companyId && !ids.includes(session.companyId)) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: 'Selected company is not authorized' });
+    }
+  });
+
+function toSession(payload: unknown, requestedCompanyId: UUID | null): Session {
   const p = (payload ?? {}) as Row;
-  const companies = asRows(p.companies).map(
-    (c): Company => ({
+  const normalized = {
+    actorId: p.actorId ?? p.actor_id,
+    companyId: p.companyId ?? p.company_id ?? null,
+    companies: asRows(p.companies).map((c) => ({
       id: str(c.id),
       name: str(c.name),
       slug: str(c.slug),
@@ -140,13 +280,134 @@ function toSession(payload: unknown): Session {
         : Array.isArray(c.permission_keys)
           ? (c.permission_keys as string[])
           : [],
-    })
-  );
-  return {
-    actorId: str(p.actorId ?? p.actor_id),
-    companyId: (p.companyId as string | null) ?? (p.company_id as string | null) ?? null,
-    companies,
+      authorizationVersion: str(c.authorizationVersion ?? c.authorization_version),
+    })),
   };
+
+  const session = sessionSchema.parse(normalized);
+  if (requestedCompanyId && session.companyId !== requestedCompanyId) {
+    throw new Error('ERP returned a different company than the authorized selection');
+  }
+  return session;
+}
+
+type OperationalMetric = {
+  key: string;
+  label: string;
+  detail: string;
+  route: string | null;
+};
+
+const OPERATIONAL_METRICS: OperationalMetric[] = [
+  {
+    key: 'pendingPurchaseOrderApprovals',
+    label: 'PO approvals',
+    detail: 'awaiting review',
+    route: '/purchasing',
+  },
+  { key: 'receiptsInProgress', label: 'Receipts', detail: 'in progress', route: '/receiving' },
+  { key: 'openPutawayTasks', label: 'Putaway', detail: 'tasks waiting', route: '/receiving' },
+  { key: 'expiringLotsSevenDays', label: 'Expiring lots', detail: 'within 7 days', route: '/inventory' },
+  { key: 'vendorBillsOnHold', label: 'Vendor bills', detail: 'on hold', route: null },
+];
+
+/** Map only fields owned by the ERP operational-dashboard contract. */
+export function toOperationalHomeSummary(payload: Row): HomeSummary {
+  const metrics = (payload.metrics ?? {}) as Row;
+  const tiles: HubMetric[] = OPERATIONAL_METRICS.flatMap((definition) => {
+    const value = numOrNull(metrics[definition.key]);
+    if (value === null) return [];
+    return [
+      {
+        key: definition.key,
+        label: definition.label,
+        value: String(value),
+        delta: null,
+        tone: value > 0 ? 'warn' : 'good',
+      },
+    ];
+  });
+
+  const needsYou = asRows(payload.attention).flatMap((item): ActionItem[] => {
+    const kind = str(item.kind);
+    const sourceId = str(item.sourceId);
+    if (!sourceId) return [];
+
+    switch (kind) {
+      case 'purchase_order_approval': {
+        const purchaseOrderId = str(item.purchaseOrderId);
+        return [
+          {
+            key: `${kind}:${sourceId}`,
+            title: `${str(item.documentNumber, 'Purchase order')} awaiting approval`,
+            workspace: 'Purchasing',
+            count: 1,
+            route: purchaseOrderId ? `/purchasing/${purchaseOrderId}` : '/purchasing',
+          },
+        ];
+      }
+      case 'goods_receipt':
+        return [
+          {
+            key: `${kind}:${sourceId}`,
+            title: `${str(item.documentNumber, 'Receipt')} in progress`,
+            workspace: 'Warehouse',
+            count: 1,
+            route: '/receiving',
+          },
+        ];
+      case 'putaway_task':
+        return [
+          {
+            key: `${kind}:${sourceId}`,
+            title: `${str(item.documentNumber, 'Receipt')} · lot ${str(item.lotCode, 'unassigned')}`,
+            workspace: 'Warehouse',
+            count: 1,
+            route: '/receiving',
+          },
+        ];
+      case 'expiring_lot': {
+        const productId = str(item.productId);
+        const days = num(item.daysToExpiry);
+        return [
+          {
+            key: `${kind}:${sourceId}`,
+            title: `${str(item.productName, 'Inventory lot')} expires in ${days} day${days === 1 ? '' : 's'}`,
+            workspace: 'Inventory',
+            count: 1,
+            route: productId ? `/item/${productId}` : '/inventory',
+          },
+        ];
+      }
+      case 'vendor_bill_hold':
+        return [
+          {
+            key: `${kind}:${sourceId}`,
+            title: `${str(item.vendorInvoiceNumber, str(item.documentNumber, 'Vendor bill'))} is on hold`,
+            workspace: 'Finance',
+            count: num(item.activeHoldCount, 1),
+            route: null,
+          },
+        ];
+      default:
+        return [];
+    }
+  });
+
+  const acrossCompany: ActivityLine[] = OPERATIONAL_METRICS.flatMap((definition) => {
+    const value = numOrNull(metrics[definition.key]);
+    if (value === null) return [];
+    return [
+      {
+        key: definition.key,
+        label: definition.label,
+        detail: `${value} ${definition.detail}`,
+        route: definition.route,
+      },
+    ];
+  });
+
+  return { greetingName: '', tiles, needsYou, acrossCompany, aiSummary: null };
 }
 
 export const supabaseApi: FoodlineApi = {
@@ -158,56 +419,26 @@ export const supabaseApi: FoodlineApi = {
     async resolve(companyId) {
       if (!(await workos.hasStoredSession())) return null;
       const payload = await call(companyId, 'application_session_context', { p_company_id: companyId });
-      return toSession(payload);
+      return toSession(payload, companyId);
     },
   },
 
   home: {
     /**
-     * Assembled from the commercial dashboard RPC. The ERP's payload shape for
-     * `needs_you` / `across_company` is not pinned down yet, so unknown keys are
-     * simply absent rather than guessed — the screen degrades to tiles only.
+     * The mobile home uses the same permission-aware operational snapshot as
+     * the ERP dashboard. Its contract is stable and carries both reconciled
+     * metrics and actionable records; do not point this back at the commercial
+     * chart payload, which has no `needsYou` contract and produced a blank app.
      */
     async summary(companyId): Promise<HomeSummary> {
-      const payload = (await call(companyId, 'get_current_commercial_dashboard')) as Row;
-      const tiles = asRows(payload, 'metrics', 'tiles', 'kpis').map((r) => ({
-        key: str(r.key ?? r.id),
-        label: str(r.label ?? r.title),
-        value: str(r.value ?? r.formatted_value),
-        delta: numOrNull(r.delta ?? r.change_percent),
-        tone: (r.tone as HomeSummary['tiles'][number]['tone']) ?? ('neutral' as const),
-      }));
-      const needsYou = asRows(payload.needs_you ?? payload.needsYou).map(
-        (r): ActionItem => ({
-          key: str(r.key ?? r.id),
-          title: str(r.title ?? r.label),
-          workspace: str(r.workspace ?? r.module),
-          count: num(r.count),
-          route: (r.route as string | null) ?? null,
-        })
-      );
-      const acrossCompany = asRows(payload.across_company ?? payload.acrossCompany).map(
-        (r): ActivityLine => ({
-          key: str(r.key ?? r.id),
-          label: str(r.label),
-          detail: str(r.detail ?? r.summary),
-          route: (r.route as string | null) ?? null,
-        })
-      );
-      const ai = payload.ai_summary ?? payload.aiSummary;
-      return {
-        greetingName: str(payload.greeting_name ?? payload.greetingName),
-        tiles: tiles.slice(0, 2),
-        needsYou,
-        acrossCompany,
-        aiSummary:
-          ai && typeof ai === 'object'
-            ? {
-                body: str((ai as Row).body ?? (ai as Row).summary),
-                actionLabel: str((ai as Row).action_label ?? (ai as Row).actionLabel, 'Review impact'),
-              }
-            : null,
-      };
+      const payload = (await call(companyId, 'get_current_operational_dashboard')) as Row;
+      if (payload.schemaVersion !== 1) throw new Error('Unsupported operational dashboard response');
+      if (payload.organizationId !== companyId)
+        throw new Error('ERP returned dashboard data for a different company');
+      if (!payload.metrics || typeof payload.metrics !== 'object' || !Array.isArray(payload.attention)) {
+        throw new Error('Invalid operational dashboard response');
+      }
+      return toOperationalHomeSummary(payload);
     },
   },
 
@@ -215,15 +446,13 @@ export const supabaseApi: FoodlineApi = {
     async metrics(companyId) {
       const payload = await call(companyId, 'get_current_commercial_dashboard');
       const rows = asRows(payload, 'metrics', 'tiles', 'kpis');
-      return rows.map(
-        (r): HubMetric => ({
-          key: str(r.key ?? r.id),
-          label: str(r.label ?? r.title),
-          value: str(r.value ?? r.formatted_value),
-          delta: numOrNull(r.delta ?? r.change_percent),
-          tone: (r.tone as HubMetric['tone']) ?? 'neutral',
-        })
-      );
+      return rows.map((r): HubMetric => ({
+        key: str(r.key ?? r.id),
+        label: str(r.label ?? r.title),
+        value: str(r.value ?? r.formatted_value),
+        delta: numOrNull(r.delta ?? r.change_percent),
+        tone: (r.tone as HubMetric['tone']) ?? 'neutral',
+      }));
     },
   },
 
@@ -236,6 +465,51 @@ export const supabaseApi: FoodlineApi = {
       if (params?.onlyBelowPar) rows = rows.filter((i) => i.status === 'low' || i.status === 'out');
       return rows;
     },
+
+    async detail(companyId, productId) {
+      const payload = await call(companyId, 'get_current_product_workspace', { p_product_id: productId });
+      return toItemDetail(payload as Row);
+    },
+  },
+
+  cycleCounts: {
+    async workspace(companyId) {
+      return toCycleCountWorkspace(await call(companyId, 'get_current_cycle_counts_workspace'), companyId);
+    },
+    async sheet(companyId, sessionId, sheetId) {
+      const payload = await call(companyId, 'get_current_cycle_count_sheet', {
+        p_session_id: sessionId,
+        p_sheet_id: sheetId,
+      });
+      return toCycleCountSheetWorkspace(payload, companyId, sessionId, sheetId);
+    },
+    async claim(companyId, input) {
+      const payload = await call(companyId, 'claim_current_cycle_count', {
+        p_command_key: input.idempotencyKey,
+        p_count_id: input.countId,
+        p_expected_version: input.expectedVersion,
+      });
+      return toCycleCountLease(payload);
+    },
+    async saveEntries(companyId, input) {
+      const payload = await call(companyId, 'save_current_cycle_count_entries', {
+        p_count_id: input.countId,
+        p_entries: input.entries,
+        p_lease_fence: input.leaseFence,
+        p_lease_token: input.leaseToken,
+      });
+      confirmSavedCycleCountEntries(payload, input.entries.length);
+    },
+    async submit(companyId, input) {
+      const payload = await call(companyId, 'submit_current_cycle_count', {
+        p_command_key: input.idempotencyKey,
+        p_count_id: input.countId,
+        p_expected_version: input.expectedVersion,
+        p_lease_fence: input.leaseFence,
+        p_lease_token: input.leaseToken,
+      });
+      confirmSubmittedCycleCount(payload);
+    },
   },
 
   purchaseOrders: {
@@ -246,9 +520,263 @@ export const supabaseApi: FoodlineApi = {
         ? rows
         : rows.filter((o) => o.status !== 'received' && o.status !== 'cancelled');
     },
+
+    async summary(companyId): Promise<PurchasingSummary> {
+      const payload = (await call(companyId, 'purchase_order_directory_snapshot', {
+        p_company_id: companyId,
+      })) as Row;
+      const rows = asRows(payload, 'purchaseOrders', 'purchase_orders', 'rows').map(toPurchaseOrder);
+      const issue = (payload.top_supply_issue ?? payload.topIssue) as Row | undefined;
+      return {
+        approvalCount: num(payload.approval_count, rows.filter((o) => o.status === 'draft').length),
+        supplyIssueCount: num(payload.supply_issue_count),
+        topIssue: issue
+          ? {
+              productName: str(issue.product_name),
+              ordersAffected: num(issue.orders_affected),
+              neededQuantity: num(issue.needed_quantity),
+              incomingQuantity: num(issue.incoming_quantity),
+              uom: str(issue.uom_code, 'cases'),
+            }
+          : null,
+        awaitingReview: rows.filter((o) => o.status === 'draft').slice(0, 5),
+        incomingToday: rows.filter((o) => o.status === 'sent' || o.status === 'confirmed').slice(0, 5),
+      };
+    },
+
+    async detail(companyId, purchaseOrderId) {
+      const payload = await call(companyId, 'get_purchase_order_workspace', {
+        p_purchase_order_id: purchaseOrderId,
+      });
+      return toPurchaseOrderDetail(payload as Row);
+    },
+
+    async creationWorkspace(companyId) {
+      try {
+        const payload = await call(companyId, 'purchase_order_editor_references', {
+          p_company_id: companyId,
+          p_vendor_id: null,
+          p_order_date: null,
+          p_currency_code: 'USD',
+        });
+        return toPurchaseOrderCreationWorkspace(payload, companyId);
+      } catch (error) {
+        throw purchaseOrderCreationError(error);
+      }
+    },
+
+    async createAndSubmit(companyId, draft, idempotencyKey) {
+      try {
+        const input = toPurchaseOrderRpcInput(draft);
+        const rpcArgs = {
+          p_company_id: companyId,
+          p_vendor_id: input.vendorId,
+          p_warehouse_id: input.warehouseId,
+          p_order_date: input.orderDate,
+          p_expected_delivery_date: input.expectedDeliveryDate,
+          p_lines: input.lines,
+          p_charges: input.charges,
+          p_allocation_method: input.allocationMethod,
+          p_buyer_actor_id: input.buyerActorId,
+          p_source: input.source,
+        };
+        const preview = confirmPurchaseOrderPreview(
+          await call(companyId, 'preview_purchase_order_draft', {
+            ...rpcArgs,
+            p_purchase_order_id: null,
+          }),
+          companyId,
+          input
+        );
+        const saved = confirmSavedPurchaseOrder(
+          await call(companyId, 'create_purchase_order_from_preview', {
+            ...rpcArgs,
+            p_command_key: idempotencyKey,
+            p_expected_quote_hash: preview.quoteHash,
+            p_vendor_reference: null,
+            p_notes: draft.note,
+          }),
+          preview.quoteHash
+        );
+
+        try {
+          return confirmSubmittedPurchaseOrder(
+            await call(companyId, 'submit_purchase_order_command', {
+              p_command_key: idempotencyKey,
+              p_expected_row_version: saved.rowVersion,
+              p_purchase_order_id: saved.purchaseOrderId,
+              p_purchase_order_version_id: saved.purchaseOrderVersionId,
+            }),
+            saved
+          );
+        } catch (error) {
+          const message = error instanceof Error ? error.message : '';
+          if (/approval_policy_missing|not_submittable|submission_unavailable/i.test(message)) {
+            return draftOnlyResult(
+              saved,
+              'The draft was created, but ERP approval settings prevented submission. Open the order to review it.'
+            );
+          }
+          throw error;
+        }
+      } catch (error) {
+        throw purchaseOrderCreationError(error);
+      }
+    },
+  },
+
+  sales: {
+    async summary(companyId): Promise<SalesSummary> {
+      const payload = (await call(companyId, 'get_current_sales_orders_workspace')) as Row;
+      const orders = asRows(payload, 'orders', 'sales_orders', 'rows').map(toSalesOrder);
+      const ai = payload.ai_insight ?? payload.aiInsight;
+      return {
+        ordersNeedingAttention: orders.filter((o) => o.attention !== null || o.state === 'short').slice(0, 8),
+        customers: asRows(payload.customers).map(toCustomer).slice(0, 8),
+        aiInsight:
+          ai && typeof ai === 'object'
+            ? {
+                body: str((ai as Row).body ?? (ai as Row).summary),
+                actionLabel: str((ai as Row).action_label ?? (ai as Row).actionLabel, 'Review order'),
+              }
+            : null,
+      };
+    },
+    async customers(companyId) {
+      const payload = (await call(companyId, 'get_current_sales_orders_workspace')) as Row;
+      return asRows(payload.customers, 'rows').map(toCustomer);
+    },
+    async orderDetail(companyId, salesOrderId) {
+      const payload = await call(companyId, 'get_current_sales_order_detail', {
+        p_sales_order_id: salesOrderId,
+      });
+      return toSalesOrderDetail(payload as Row);
+    },
+    async orderFulfillment(companyId, salesOrderId) {
+      const payload = await call(companyId, 'get_current_sales_order_fulfillment', {
+        p_sales_order_id: salesOrderId,
+      });
+      return toSalesOrderFulfillment(payload as Row);
+    },
+    async cancelRemainder(companyId, input) {
+      await call(companyId, 'cancel_current_sales_order_remainder', {
+        p_command_key: input.idempotencyKey,
+        p_sales_order_id: input.salesOrderId,
+        p_expected_order_row_version: input.expectedOrderRowVersion,
+        p_reason: input.reason,
+      });
+    },
+    async allocateBackorder(companyId, input) {
+      await call(companyId, 'release_current_backorder', {
+        p_command_key: input.idempotencyKey,
+        p_sales_order_line_id: input.salesOrderLineId,
+        p_expected_order_row_version: input.expectedOrderRowVersion,
+        p_quantity: input.quantity,
+      });
+    },
+  },
+
+  routes: {
+    async today(companyId): Promise<DeliveryRoute | null> {
+      // `get_current_delivery_route_workspace` returns every active route
+      // org-wide (confirmed — it wraps `get_unfiltered_current_delivery_
+      // route_workspace`, literally unfiltered by driver), not "my route."
+      // Until a driver-scoped RPC is confirmed, this picks the route most
+      // relevant to a driver opening the app: the one in progress, else the
+      // next one ready to dispatch, else the first route at all.
+      const payload = (await call(companyId, 'get_current_delivery_route_workspace')) as Row;
+      const routes = asRows(payload, 'routes');
+      const route =
+        routes.find((r) => r.status === 'in_progress') ??
+        routes.find((r) => r.status === 'ready') ??
+        routes[0];
+      if (!route) return null;
+      const stops = asRows(route.stops).map(toStop);
+      const vehicle = route.vehicle as Row | null | undefined;
+      return {
+        id: str(route.id),
+        code: str(route.documentNumber),
+        vehicleLabel: vehicle ? str(vehicle.name) || null : null,
+        stopsTotal: num(route.stopCount, stops.length),
+        stopsComplete: num(route.completedStopCount, stops.filter((s2) => s2.state === 'completed').length),
+        stops,
+      };
+    },
+    async stop(companyId, stopId): Promise<StopDetail | null> {
+      const payload = (await call(companyId, 'get_current_delivery_stop_detail', {
+        p_stop_id: stopId,
+      })) as Row;
+      if (!payload || !payload.stopId) return null;
+      // Confirmed absent from this RPC, not guessed: no sequence, address or
+      // delivery window on the detail payload — only the route-list rows
+      // carry those (`toStop` above). The detail screen doesn't render them.
+      const stop: DeliveryStop = {
+        id: str(payload.stopId),
+        sequence: 0,
+        customerName: str(payload.stopName),
+        address: '',
+        windowLabel: null,
+        state: (payload.stopStatus as DeliveryStop['state']) ?? 'planned',
+        rowVersion: num(payload.stopRowVersion, 1),
+      };
+      const lines: ShipmentLine[] = asRows(payload.shipments).flatMap((shipment) =>
+        asRows(shipment.lines).map((l): ShipmentLine => ({
+          id: str(l.shipmentLineId),
+          productName: str(l.productName, 'Unknown item'),
+          quantity: num(l.quantity),
+          baseQuantity: num(l.baseQuantity),
+        }))
+      );
+      return {
+        stop,
+        routeId: str(payload.routeId),
+        routeRowVersion: num(payload.routeRowVersion, 1),
+        lines,
+      };
+    },
+    async arriveAtStop(companyId, input) {
+      await call(companyId, 'transition_current_delivery_stop_exact', {
+        p_command_key: input.idempotencyKey,
+        p_stop_id: input.stopId,
+        p_expected_row_version: input.expectedRowVersion,
+        p_action: 'arrive',
+      });
+    },
+    async recordProofOfDelivery(companyId, input) {
+      await call(companyId, 'record_current_proof_of_delivery_exact', {
+        p_command_key: input.idempotencyKey,
+        p_proof: {
+          stopId: input.stopId,
+          expectedStopVersion: input.expectedStopVersion,
+          expectedRouteVersion: input.expectedRouteVersion,
+          recipientName: input.recipientName,
+          signatureAttachmentId: null,
+          photoAttachmentId: null,
+          reason: input.reason,
+          lines: input.lines.map((l) => ({
+            shipmentLineId: l.shipmentLineId,
+            deliveredBaseQuantity: l.deliveredBaseQuantity,
+            refusedBaseQuantity: l.refusedBaseQuantity,
+            shortBaseQuantity: l.shortBaseQuantity,
+          })),
+        },
+      });
+    },
   },
 
   receiving: {
+    async warehouses(companyId) {
+      const payload = await call(companyId, 'list_receiving_location_warehouses');
+      return asRows(payload, 'warehouses', 'rows').map(toWarehouse);
+    },
+
+    async dock(companyId, warehouseId) {
+      const payload = await call(companyId, 'get_governed_receiving_dock');
+      const rows = asRows(payload, 'receipts', 'goods_receipts', 'rows').map(toDockReceipt);
+      const open = rows.filter((r) => r.status !== 'posted');
+      return warehouseId ? open.filter((r) => r.warehouseId === warehouseId) : open;
+    },
+
     async startSession(companyId, warehouseId, deviceId) {
       const payload = (await call(companyId, 'start_scanner_session', {
         p_warehouse_id: warehouseId,
@@ -289,6 +817,174 @@ export const supabaseApi: FoodlineApi = {
         p_input_method: input.inputMethod,
         p_idempotency_key: input.idempotencyKey,
         p_client_occurred_at: new Date().toISOString(),
+      });
+    },
+  },
+
+  customers: {
+    async detail(companyId, customerId) {
+      const payload = await call(companyId, 'get_current_customer_detail', { p_customer_id: customerId });
+      return toCustomerDetail(payload as Row);
+    },
+  },
+
+  vendors: {
+    async list(companyId) {
+      return toVendorListItems(
+        await call(companyId, 'vendor_directory_snapshot', { p_company_id: companyId })
+      );
+    },
+    async detail(companyId, vendorId) {
+      const payload = await call(companyId, 'vendor_read', {
+        p_company_id: companyId,
+        p_vendor_id: vendorId,
+      });
+      return toVendorDetail(payload as Row);
+    },
+  },
+
+  copilot: {
+    turn: (companyId, input) => liveTurn(companyId, input),
+    reviewAction: (companyId, input) => liveReviewAction(companyId, input),
+    executeAction: (companyId, proposalToken) => liveExecuteAction(companyId, proposalToken),
+  },
+
+  voice: {
+    async start() {
+      // The ERP route can now mint a scoped, short-lived Realtime credential.
+      // Native microphone capture remains deliberately disabled until the
+      // user explicitly consents to sending spoken audio to OpenAI Realtime.
+      return {
+        available: false,
+        reason: 'Voice setup is ready. Microphone streaming needs your approval before it can be enabled.',
+      };
+    },
+  },
+
+  documents: {
+    async list(companyId) {
+      const payload = await call(companyId, 'list_governed_receiving_document_reviews');
+      return asRows(payload)
+        .map(toReviewSummary)
+        .filter((r): r is ReviewSummary => r !== null);
+    },
+    async get(companyId, reviewId) {
+      const raw = await call(companyId, 'get_governed_receiving_document_review', { p_review_id: reviewId });
+      const detail = toReviewDetail(raw as Row);
+      if (!detail) return null;
+      // Prefer the PO the reviewer already saved against; else the parser's match.
+      const poId =
+        (((raw as Row).corrections as Row | null)?.purchaseOrderId as string | undefined) ??
+        detail.purchaseOrder.id;
+      if (!poId)
+        return { detail, order: null, orderError: 'The parser did not match this document to an order.' };
+      try {
+        const po = await call(companyId, 'get_purchase_order_workspace', { p_purchase_order_id: poId });
+        const order = toReviewOrderContext(po as Row);
+        return { detail, order, orderError: order ? null : 'The matched order could not be read.' };
+      } catch (e) {
+        return { detail, order: null, orderError: (e as Error).message };
+      }
+    },
+    async saveCorrections(companyId, input) {
+      const result = (await call(companyId, 'save_governed_receiving_document_review', {
+        p_command_key: input.idempotencyKey,
+        p_review_id: input.reviewId,
+        p_expected_row_version: input.expectedRowVersion,
+        p_corrections: input.corrections,
+      })) as Row;
+      return { rowVersion: num(result.rowVersion, input.expectedRowVersion + 1) };
+    },
+    async approve(companyId, input) {
+      const result = (await call(companyId, 'materialize_and_approve_governed_receiving_document_review', {
+        p_command_key: input.idempotencyKey,
+        p_review_id: input.reviewId,
+        p_expected_row_version: input.expectedRowVersion,
+      })) as Row;
+      return { goodsReceiptId: typeof result.goodsReceiptId === 'string' ? result.goodsReceiptId : null };
+    },
+    async reject(companyId, input) {
+      await call(companyId, 'reject_governed_receiving_document_review', {
+        p_command_key: input.idempotencyKey,
+        p_review_id: input.reviewId,
+        p_expected_row_version: input.expectedRowVersion,
+        p_reason: input.reason,
+      });
+    },
+  },
+
+  routines: {
+    async draft(companyId, purchaseOrderId) {
+      const payload = (await call(companyId, 'get_purchase_order_workspace', {
+        p_purchase_order_id: purchaseOrderId,
+      })) as Row;
+      const order = payload.purchase_order as Row | undefined;
+      if (!order || !order.purchase_order_id) return null;
+      const cycleId = str(order.approval_cycle_id);
+      const requestVersion = str(order.approval_request_row_version);
+      if (!cycleId || !requestVersion || order.approval_status !== 'pending' || order.can_decide !== true)
+        return null;
+      const currency = str(order.currency_code, 'USD');
+      const amount = str(order.approval_amount, '0.00');
+      const lines = asRows(order.lines);
+      return {
+        id: str(order.purchase_order_id),
+        reference: str(order.document_number),
+        vendorName: str(order.vendor_name),
+        formattedTotal: currency === 'USD' ? `$${amount}` : `${currency} ${amount}`,
+        summary: `${lines.length} line${lines.length === 1 ? '' : 's'}${order.warehouse_name ? ` · ${str(order.warehouse_name)}` : ''}`,
+        lines: lines.slice(0, 5).map((line) => ({
+          id: str(line.purchaseOrderVersionLineId ?? line.id),
+          description: str(line.productName),
+          quantityLabel: `${str(line.quantity)} ${str(line.uomCode)}`,
+        })),
+        lineOverflow: Math.max(0, lines.length - 5),
+        rowVersion: str(order.purchase_order_row_version),
+        approvalCycleId: cycleId,
+        approvalRequestRowVersion: requestVersion,
+      };
+    },
+    async approveDraftedPurchaseOrder(companyId, input) {
+      const draft = input.draft as DraftedPurchaseOrder;
+      await call(companyId, 'decide_purchase_order_approval_command', {
+        p_command_key: input.idempotencyKey,
+        p_approval_cycle_id: draft.approvalCycleId,
+        p_expected_purchase_order_row_version: draft.rowVersion,
+        p_expected_approval_request_row_version: draft.approvalRequestRowVersion,
+        p_outcome: 'approve',
+      });
+    },
+  },
+
+  shipments: {
+    async target(companyId, orderId) {
+      const payload = (await call(companyId, 'get_current_sales_order_detail', {
+        p_sales_order_id: orderId,
+      })) as Row;
+      if (!payload.id || (payload.capabilities as Row | undefined)?.canShip !== true) return null;
+      const customer = (payload.customer ?? {}) as Row;
+      const quantities = (payload.quantities ?? {}) as Row;
+      const lines = asRows(payload.lines);
+      return {
+        orderId: str(payload.id),
+        reference: str(payload.documentNumber),
+        customerName: str(customer.name),
+        summary: `${lines.length} line${lines.length === 1 ? '' : 's'} · ${str(quantities.remainingDemandBase, '0')} base units remaining`,
+        rowVersion: str(payload.rowVersion),
+      };
+    },
+    async post(companyId, draft: ShipmentDraft, idempotencyKey: string) {
+      // No p_customer_reference on this RPC (confirmed against the live
+      // source — that field lives on the invoice command, not shipment).
+      // draft.customerReference is intentionally not sent anywhere here.
+      await call(companyId, 'ship_current_sales_order', {
+        p_command_key: idempotencyKey,
+        p_sales_order_id: draft.orderId,
+        p_expected_row_version: draft.rowVersion,
+        p_shipped_on: draft.shipmentDate,
+        p_carrier: draft.carrier,
+        p_tracking_number: draft.trackingNumber,
+        p_notes: draft.internalNote,
       });
     },
   },

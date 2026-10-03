@@ -10,8 +10,8 @@ git clone <repo> && cd foodline-mobile
 npm run start:go        # scan the QR code with Expo Go
 ```
 
-Ships in **demo mode** by default (`EXPO_PUBLIC_DEMO_MODE=1`) — full app, bundled
-fixtures, no backend, works offline. Edit `.env.local` to point at Supabase.
+The app requires the live Foodline backend. Copy `.env.example` to `.env.local`
+and provide the browser-safe Supabase publishable key before starting it.
 
 ## Getting a build without Android Studio or Xcode
 
@@ -42,8 +42,7 @@ project the web ERP uses). `src/lib/database.types.ts` is the ERP's generated ty
 copied verbatim. To go live:
 
 1. Put the Supabase **publishable key** in `.env.local`
-2. Set `EXPO_PUBLIC_DEMO_MODE=0`
-3. Register `foodline://auth/callback` as a WorkOS AuthKit redirect URI
+2. Register `foodline://auth/callback` as a WorkOS AuthKit redirect URI
 
 Auth is **WorkOS AuthKit**, not Supabase Auth — the WorkOS access token is handed to
 Supabase as a third-party JWT, exactly as the web ERP does. Company scope travels in

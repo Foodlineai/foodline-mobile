@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "densityConvention": "React Native base, @2x, @3x",
+  "heroes": {
+    "admin": "./heroes/admin-loading-dock.png",
+    "sales": "./heroes/sales-operations.png",
+    "purchasing": "./heroes/purchasing-basket.png",
+    "inventory": "./heroes/inventory-cold-room.png",
+    "warehouse": "./heroes/admin-loading-dock.png",
+    "routes": "./heroes/routes-map.png"
+  },
+  "ai": {
+    "foodlineAiTab": "./ai/foodline-ai-orb.png"
+  },
+  "workspaceIcons": {
+    "sales": "./workspace-icons/sales.svg",
+    "purchasing": "./workspace-icons/purchasing.svg",
+    "inventory": "./workspace-icons/inventory.svg",
+    "warehouse": "./workspace-icons/warehouse.svg",
+    "routes": "./workspace-icons/routes.svg",
+    "finance": "./workspace-icons/finance.svg",
+    "reports": "./workspace-icons/reports.svg",
+    "data": "./workspace-icons/data.svg",
+    "settings": "./workspace-icons/settings.svg"
+  }
+}

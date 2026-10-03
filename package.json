@@ -1,6 +1,6 @@
 {
   "name": "foodline-mobile",
-  "version": "0.1.0",
+  "version": "0.5.1",
   "main": "expo-router/entry",
   "private": true,
   "scripts": {
@@ -11,6 +11,7 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts,.tsx",
+    "check:production": "node scripts/check-production-mobile.mjs",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
     "doctor": "npx expo-doctor",
     "prebuild": "expo prebuild --clean",
@@ -34,7 +35,9 @@
     "expo-haptics": "~57.0.3",
     "expo-image": "~57.0.5",
     "expo-image-picker": "~57.0.19",
+    "expo-linear-gradient": "~57.0.2",
     "expo-linking": "~57.0.10",
+    "expo-local-authentication": "~57.0.3",
     "expo-localization": "~57.0.2",
     "expo-network": "~57.0.2",
     "expo-notifications": "~57.0.20",

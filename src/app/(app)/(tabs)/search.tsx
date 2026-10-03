@@ -51,7 +51,7 @@ export default function Search() {
             <EmptyState title="Start typing" hint="At least two characters." />
           ) : items.isPending ? (
             <Loading label="Searching" />
-          ) : items.isError ? (
+          ) : items.isLoadingError ? (
             <ErrorState message={(items.error as Error).message} onRetry={() => items.refetch()} />
           ) : (
             <View className="gap-5">

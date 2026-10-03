@@ -15,19 +15,26 @@ import {
   NoticeCard,
   Screen,
   SectionHeader,
+  StaleBanner,
   StatTile,
   type IconName,
 } from '@/components/ui';
 import { useAuth, useCompanyId } from '@/features/auth/auth-context';
 import { api } from '@/lib/api';
 
-const TILE_ICONS: IconName[] = ['file-text', 'truck'];
 const WORKSPACE_ICONS: Record<string, IconName> = {
   'Sales & Customers': 'file-text',
   Purchasing: 'shopping-cart',
   'Routes & Delivery': 'alert-triangle',
   Inventory: 'box',
   Warehouse: 'home',
+};
+
+const METRIC_ROUTES: Record<string, string> = {
+  pendingPurchaseOrderApprovals: '/purchasing',
+  receiptsInProgress: '/receiving',
+  openPutawayTasks: '/receiving',
+  expiringLotsSevenDays: '/inventory',
 };
 
 export default function Home() {
@@ -52,29 +59,36 @@ export default function Home() {
 
         {home.isPending ? (
           <Loading label="Loading your day" />
-        ) : home.isError ? (
+        ) : home.isLoadingError ? (
           <ErrorState message={(home.error as Error).message} onRetry={() => home.refetch()} />
         ) : (
           <ScrollView
             contentContainerClassName="gap-6 px-5 pb-10 pt-4"
             refreshControl={<RefreshControl refreshing={home.isRefetching} onRefresh={() => home.refetch()} />}
           >
+            {home.isRefetchError ? <StaleBanner updatedAt={home.dataUpdatedAt} /> : null}
             <View className="gap-1">
               <Text className="text-3xl font-bold text-ink">
                 {greeting()}
                 {home.data.greetingName ? `, ${home.data.greetingName}` : ''}
               </Text>
-              <Text className="text-base text-ink-muted">Everything that needs your attention</Text>
+              <Text className="text-base text-ink-muted">
+                {home.data.needsYou.length > 0
+                  ? `${home.data.needsYou.length} thing${home.data.needsYou.length === 1 ? '' : 's'} ${
+                      home.data.needsYou.length === 1 ? 'needs' : 'need'
+                    } your attention`
+                  : "You're all caught up"}
+              </Text>
             </View>
 
             {home.data.tiles.length > 0 ? (
-              <View className="flex-row gap-3">
-                {home.data.tiles.map((tile, i) => (
+              <View className="flex-row flex-wrap gap-3">
+                {home.data.tiles.map((tile) => (
                   <StatTile
                     key={tile.key}
-                    icon={TILE_ICONS[i] ?? 'activity'}
                     label={tile.label}
                     value={tile.value}
+                    onPress={METRIC_ROUTES[tile.key] ? () => router.push(METRIC_ROUTES[tile.key] as never) : undefined}
                   />
                 ))}
               </View>
@@ -86,15 +100,19 @@ export default function Home() {
                 <EmptyState title="Nothing waiting on you" hint="Approvals and exceptions will appear here." />
               ) : (
                 <Group>
-                  {home.data.needsYou.map((item) => (
-                    <ListRow
-                      key={item.key}
-                      icon={WORKSPACE_ICONS[item.workspace] ?? 'circle'}
-                      title={item.title}
-                      subtitle={item.workspace}
-                      onPress={item.route ? () => router.push(item.route as never) : undefined}
-                    />
-                  ))}
+                  {home.data.needsYou.map((item) => {
+                    const icon = WORKSPACE_ICONS[item.workspace] ?? 'circle';
+                    return (
+                      <ListRow
+                        key={item.key}
+                        icon={icon}
+                        tone={icon === 'alert-triangle' ? 'danger' : 'default'}
+                        title={item.title}
+                        subtitle={item.workspace}
+                        onPress={item.route ? () => router.push(item.route as never) : undefined}
+                      />
+                    );
+                  })}
                 </Group>
               )}
             </View>
@@ -121,7 +139,12 @@ export default function Home() {
                 title="AI summary"
                 body={home.data.aiSummary.body}
                 actionLabel={home.data.aiSummary.actionLabel}
-                onAction={() => router.push('/(app)/(tabs)/more')}
+                onAction={() =>
+                  router.push({
+                    pathname: '/(app)/(tabs)/ai',
+                    params: { prompt: home.data.aiSummary?.body ?? '' },
+                  })
+                }
               />
             ) : null}
 

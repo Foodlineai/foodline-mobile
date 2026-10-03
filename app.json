@@ -2,7 +2,7 @@
   "expo": {
     "name": "Foodline",
     "slug": "foodline-mobile",
-    "version": "0.1.0",
+    "version": "0.5.1",
     "orientation": "portrait",
     "scheme": "foodline",
     "userInterfaceStyle": "automatic",
@@ -26,11 +26,13 @@
     },
     "android": {
       "package": "ai.foodline.mobile",
+      "versionCode": 9,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png",
         "backgroundColor": "#008CD2"
       },
-      "edgeToEdgeEnabled": true,
       "permissions": [
         "android.permission.CAMERA"
       ]
@@ -62,11 +64,6 @@
     "experiments": {
       "typedRoutes": true,
       "tsconfigPaths": true
-    },
-    "extra": {
-      "eas": {
-        "projectId": "REPLACE_AFTER_EAS_INIT"
-      }
     }
   }
 }
