@@ -42,7 +42,7 @@ export interface FoodlineApi {
     resolve(companyId: UUID | null): Promise<Session | null>;
   };
   home: {
-    /** Powers the Home tab. One call, so the first screen is one spinner. */
+    /** `get_current_operational_dashboard` — permission-aware live Home snapshot. */
     summary(companyId: UUID): Promise<HomeSummary>;
   };
   hub: {

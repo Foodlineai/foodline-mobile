@@ -4,18 +4,19 @@
  * audio conversation; the UI only needs its state and the one line the
  * Copilot is currently saying.
  *
- * The ERP's web voice is browser WebRTC against OpenAI Realtime with a
- * server-minted client secret (`issueAiCopilotRealtimeSession`). PR #314 has
- * no mobile route for that, so a live session is unavailable until the ERP
- * exposes one and a native WebRTC client is added. The type is the seam.
+ * The ERP issues a short-lived, company-scoped OpenAI Realtime credential.
+ * Native capture plugs into this seam only after microphone data transfer is
+ * explicitly approved; model keys never ship in the application.
  */
 export type VoiceStatus = 'off' | 'starting' | 'listening' | 'speaking' | 'unavailable';
 
-export type VoiceEvent = { type: 'status'; status: 'listening' | 'speaking' } | { type: 'line'; text: string };
+export type VoiceEvent =
+  { type: 'status'; status: 'listening' | 'speaking' } | { type: 'line'; text: string };
 
 export type VoiceSession = {
   subscribe: (listener: (event: VoiceEvent) => void) => () => void;
   stop: () => void;
 };
 
-export type VoiceStartResult = { available: true; session: VoiceSession } | { available: false; reason: string };
+export type VoiceStartResult =
+  { available: true; session: VoiceSession } | { available: false; reason: string };

@@ -16,6 +16,19 @@ import { CopilotError, type Interaction, type TurnInput, type TurnResult } from 
  */
 
 const TIMEOUT_MS = 60_000;
+const SERVICE_NOT_DEPLOYED_MESSAGE = 'Foodline AI is being updated on the ERP. Please try again shortly.';
+
+function responseErrorMessage(payload: unknown, fallback: string): string {
+  const message = (payload as { error?: unknown } | null)?.error;
+  if (typeof message !== 'string' || !message.trim()) return fallback;
+  // TanStack's HTML-only fallback can itself be returned as JSON by a host
+  // that has not deployed the mobile route. It is infrastructure detail, not
+  // a Copilot answer, and must never be rendered into the conversation.
+  if (/only html requests|html request|mobile copilot yet|route not found/i.test(message)) {
+    return SERVICE_NOT_DEPLOYED_MESSAGE;
+  }
+  return message;
+}
 
 async function post(path: string, companyId: string, body: unknown): Promise<unknown> {
   const token = await getAccessToken();
@@ -37,7 +50,8 @@ async function post(path: string, companyId: string, body: unknown): Promise<unk
       signal: controller.signal,
     });
   } catch (e) {
-    if ((e as Error).name === 'AbortError') throw new CopilotError('The Copilot took too long to answer. Try again.', 0);
+    if ((e as Error).name === 'AbortError')
+      throw new CopilotError('The Copilot took too long to answer. Try again.', 0);
     throw new CopilotError("Couldn't reach the Copilot. Check your connection.", 0);
   } finally {
     clearTimeout(timer);
@@ -45,13 +59,12 @@ async function post(path: string, companyId: string, body: unknown): Promise<unk
 
   const isJson = (response.headers.get('content-type') ?? '').includes('application/json');
   if (!isJson || response.url.includes('/sign-in')) {
-    throw new CopilotError("The ERP isn't serving the mobile Copilot yet.", response.status);
+    throw new CopilotError(SERVICE_NOT_DEPLOYED_MESSAGE, response.status);
   }
   const payload: unknown = await response.json().catch(() => null);
   if (!response.ok) {
-    const message = (payload as { error?: unknown } | null)?.error;
     throw new CopilotError(
-      typeof message === 'string' && message ? message : 'The Copilot request failed.',
+      responseErrorMessage(payload, 'Foodline AI could not complete that request.'),
       response.status
     );
   }
@@ -68,6 +81,9 @@ export async function liveTurn(companyId: string, input: TurnInput): Promise<Tur
   });
   const result = toTurnResult(payload);
   if (!result) throw new CopilotError('The Copilot returned an answer this app could not read.', 502);
+  if (/only html requests|html request|route not found/i.test(result.answer)) {
+    throw new CopilotError(SERVICE_NOT_DEPLOYED_MESSAGE, 503);
+  }
   return result;
 }
 

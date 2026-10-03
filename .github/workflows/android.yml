@@ -23,6 +23,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint --if-present
+      - run: npm run check:production
 
   apk:
     name: Build standalone APK

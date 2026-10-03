@@ -1,12 +1,9 @@
-/** Every visible workspace has a native screen or an authenticated ERP fallback. */
+/** Workspaces with a complete native entry screen. Browser fallbacks do not count. */
 export const builtWorkspaces = [
   'sales',
   'purchasing',
   'inventory',
   'warehouse',
   'routes',
-  'finance',
   'reports',
-  'data',
-  'settings',
 ] as const;

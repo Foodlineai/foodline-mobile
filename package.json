@@ -11,6 +11,7 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts,.tsx",
+    "check:production": "node scripts/check-production-mobile.mjs",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
     "doctor": "npx expo-doctor",
     "prebuild": "expo prebuild --clean",

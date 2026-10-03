@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, type ImageStyle, type StyleProp } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 
 import { ARTWORK } from './artwork';
 
-export function FoodlineAiOrb({ size = 48, style }: { size?: number; style?: StyleProp<ImageStyle> }) {
-  const rotation = useRef(new Animated.Value(0)).current;
-  const pulse = useRef(new Animated.Value(0)).current;
+export function FoodlineAiOrb({ size = 48, style }: { size?: number; style?: StyleProp<ViewStyle> }) {
+  const breath = useRef(new Animated.Value(0)).current;
+  const glow = useRef(new Animated.Value(0)).current;
   const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
@@ -21,65 +21,105 @@ export function FoodlineAiOrb({ size = 48, style }: { size?: number; style?: Sty
   }, []);
 
   useEffect(() => {
-    rotation.stopAnimation();
-    pulse.stopAnimation();
+    breath.stopAnimation();
+    glow.stopAnimation();
     if (reduceMotion) {
-      rotation.setValue(0);
-      pulse.setValue(0);
+      breath.setValue(0);
+      glow.setValue(0);
       return;
     }
 
-    const orbit = Animated.loop(
-      Animated.timing(rotation, {
-        toValue: 1,
-        duration: 14000,
-        easing: Easing.linear,
-        useNativeDriver: true,
-        isInteraction: false,
-      })
-    );
     const breathing = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, {
+        Animated.timing(breath, {
           toValue: 1,
-          duration: 1800,
+          duration: 2100,
           easing: Easing.inOut(Easing.sin),
           useNativeDriver: true,
           isInteraction: false,
         }),
-        Animated.timing(pulse, {
+        Animated.timing(breath, {
           toValue: 0,
-          duration: 1800,
+          duration: 2100,
           easing: Easing.inOut(Easing.sin),
           useNativeDriver: true,
           isInteraction: false,
         }),
       ])
     );
-    orbit.start();
+    const glowing = Animated.loop(
+      Animated.sequence([
+        Animated.delay(350),
+        Animated.timing(glow, {
+          toValue: 1,
+          duration: 1500,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+          isInteraction: false,
+        }),
+        Animated.timing(glow, {
+          toValue: 0,
+          duration: 1800,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+          isInteraction: false,
+        }),
+        Animated.delay(550),
+      ])
+    );
     breathing.start();
+    glowing.start();
     return () => {
-      orbit.stop();
       breathing.stop();
+      glowing.stop();
     };
-  }, [pulse, reduceMotion, rotation]);
+  }, [breath, glow, reduceMotion]);
 
   return (
-    <Animated.Image
-      source={ARTWORK.foodlineAiOrb}
+    <Animated.View
       accessibilityLabel="Foodline AI"
-      resizeMode="contain"
+      accessibilityRole="image"
       style={[
-        { width: size, height: size },
+        styles.container,
+        { width: size, height: size, borderRadius: size / 2 },
         {
-          opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }),
           transform: [
-            { rotate: rotation.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) },
-            { scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.98, 1.035] }) },
+            { translateY: breath.interpolate({ inputRange: [0, 1], outputRange: [0.5, -1] }) },
+            { scale: breath.interpolate({ inputRange: [0, 1], outputRange: [0.985, 1.02] }) },
           ],
         },
         style,
       ]}
-    />
+    >
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.glow,
+          {
+            borderRadius: size / 2,
+            opacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0.08, 0.28] }),
+            transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.16] }) }],
+          },
+        ]}
+      />
+      <Animated.Image
+        source={ARTWORK.foodlineAiOrb}
+        resizeMode="contain"
+        style={{
+          width: size,
+          height: size,
+          opacity: breath.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] }),
+        }}
+      />
+    </Animated.View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { alignItems: 'center', justifyContent: 'center' },
+  glow: {
+    position: 'absolute',
+    inset: 0,
+    backgroundColor: '#7CA8FF',
+  },
+});

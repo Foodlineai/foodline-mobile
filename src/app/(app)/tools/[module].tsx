@@ -7,7 +7,6 @@ import { AppHeader, initialsFrom } from '@/components/app-header';
 import { EmptyState, Group, GroupLabel, ListRow, Screen, ViewBadge } from '@/components/ui';
 import { useAuth } from '@/features/auth/auth-context';
 import { toolsModule } from '@/features/workspaces/tools-catalog';
-import { openLiveErp } from '@/lib/open-erp';
 
 /** One screen serves every "<Module> tools" directory — they differ only in data. */
 export default function ToolsScreen() {
@@ -44,14 +43,9 @@ export default function ToolsScreen() {
                       key={t.key}
                       icon={t.icon}
                       title={t.label}
-                      trailing={t.badge === 'view' ? <ViewBadge /> : undefined}
-                      onPress={() => {
-                        if (t.route) {
-                          router.push(t.route as never);
-                          return;
-                        }
-                        if (t.erpPath) void openLiveErp(t.erpPath);
-                      }}
+                      subtitle={t.route ? undefined : 'Native workflow in progress'}
+                      trailing={t.route && t.badge === 'view' ? <ViewBadge /> : undefined}
+                      onPress={t.route ? () => router.push(t.route as never) : undefined}
                     />
                   ))}
                 </Group>

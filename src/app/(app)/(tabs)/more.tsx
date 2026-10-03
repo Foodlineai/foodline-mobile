@@ -8,7 +8,6 @@ import { useAuth } from '@/features/auth/auth-context';
 import { WorkspaceDirectoryScreen } from '@/features/workspaces/WorkspaceDirectoryScreen';
 import { builtWorkspaces } from '@/personas/workspaces';
 import type { WorkspaceId } from '@/personas/types';
-import { openLiveErp } from '@/lib/open-erp';
 
 /** Where each buildable workspace actually lives. Workspaces with no route
  * here render "Coming soon" from the directory screen itself. */
@@ -18,13 +17,7 @@ const WORKSPACE_ROUTES: Partial<Record<WorkspaceId, string>> = {
   inventory: '/inventory',
   warehouse: '/receiving',
   routes: '/routes',
-};
-
-const ERP_WORKSPACE_ROUTES: Partial<Record<WorkspaceId, string>> = {
-  finance: '/accounts-payable',
-  reports: '/reports',
-  data: '/integrations',
-  settings: '/setup',
+  reports: '/(app)/(tabs)/activity',
 };
 
 /**
@@ -59,10 +52,7 @@ export default function More() {
             const route = WORKSPACE_ROUTES[workspace.id];
             if (route) {
               router.push(route as never);
-              return;
             }
-            const erpRoute = ERP_WORKSPACE_ROUTES[workspace.id];
-            if (erpRoute) void openLiveErp(erpRoute);
           }}
         />
       </SafeAreaView>

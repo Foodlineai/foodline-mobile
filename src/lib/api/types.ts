@@ -13,6 +13,8 @@ export type Company = {
   slug: string;
   roleKey: string;
   permissionKeys: string[];
+  /** Changes whenever the ERP changes this actor's authorization. */
+  authorizationVersion: string;
 };
 
 /** Mirrors `application_session_context` / `erpSessionSchema` in the web ERP. */

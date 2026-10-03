@@ -1,9 +1,9 @@
 import { getSupabase } from '../supabase';
+import { z } from 'zod';
 import type { FoodlineApi } from './ports';
 import type {
   ActionItem,
   ActivityLine,
-  Company,
   Customer,
   DeliveryRoute,
   DeliveryStop,
@@ -28,7 +28,11 @@ import * as workos from '@/features/auth/workos';
 import { toCustomerDetail } from '@/features/customers/adapter';
 import { liveExecuteAction, liveReviewAction, liveTurn } from '@/features/copilot/client';
 import { toItemDetail } from '@/features/items/detail/adapter';
-import { toReviewDetail, toReviewOrderContext, toReviewSummary } from '@/features/receiving/documents/adapter';
+import {
+  toReviewDetail,
+  toReviewOrderContext,
+  toReviewSummary,
+} from '@/features/receiving/documents/adapter';
 import type { ReviewSummary } from '@/features/receiving/documents/types';
 import { toPurchaseOrderDetail } from '@/features/purchasing/order-detail/adapter';
 import type { DraftedPurchaseOrder } from '@/features/routines/types';
@@ -145,7 +149,6 @@ function toReceivingTask(r: Row): ReceivingTask {
   };
 }
 
-
 function toWarehouse(r: Row): ReceivingWarehouse {
   return {
     id: str(r.id ?? r.warehouse_id),
@@ -168,7 +171,6 @@ function toDockReceipt(r: Row): DockReceipt {
     arrivedAt: (r.arrived_at as string | null) ?? null,
   };
 }
-
 
 function toSalesOrder(r: Row): SalesOrder {
   return {
@@ -210,7 +212,10 @@ function toStop(r: Row): DeliveryStop {
 // intentionally goes through one loosely-typed call helper rather than
 // threading 343 signatures through the UI. Payload shapes are validated by the
 // mappers above, which is where a schema change should surface.
-type Rpc = (name: string, args?: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
+type Rpc = (
+  name: string,
+  args?: Record<string, unknown>
+) => Promise<{ data: unknown; error: { message: string } | null }>;
 
 async function call(companyId: UUID | null, name: string, args?: Record<string, unknown>): Promise<unknown> {
   const client = getSupabase(companyId);
@@ -219,10 +224,37 @@ async function call(companyId: UUID | null, name: string, args?: Record<string, 
   return data;
 }
 
-function toSession(payload: unknown): Session {
+const companySchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().trim().min(1),
+  slug: z.string().trim().min(1),
+  roleKey: z.string().trim().min(1),
+  permissionKeys: z.array(z.string().trim().min(1)),
+  authorizationVersion: z.string().regex(/^[1-9][0-9]*$/),
+});
+
+const sessionSchema = z
+  .object({
+    actorId: z.string().uuid(),
+    companyId: z.string().uuid().nullable(),
+    companies: z.array(companySchema),
+  })
+  .superRefine((session, context) => {
+    const ids = session.companies.map((company) => company.id);
+    if (new Set(ids).size !== ids.length) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: 'Duplicate company access entries' });
+    }
+    if (session.companyId && !ids.includes(session.companyId)) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: 'Selected company is not authorized' });
+    }
+  });
+
+function toSession(payload: unknown, requestedCompanyId: UUID | null): Session {
   const p = (payload ?? {}) as Row;
-  const companies = asRows(p.companies).map(
-    (c): Company => ({
+  const normalized = {
+    actorId: p.actorId ?? p.actor_id,
+    companyId: p.companyId ?? p.company_id ?? null,
+    companies: asRows(p.companies).map((c) => ({
       id: str(c.id),
       name: str(c.name),
       slug: str(c.slug),
@@ -232,13 +264,134 @@ function toSession(payload: unknown): Session {
         : Array.isArray(c.permission_keys)
           ? (c.permission_keys as string[])
           : [],
-    })
-  );
-  return {
-    actorId: str(p.actorId ?? p.actor_id),
-    companyId: (p.companyId as string | null) ?? (p.company_id as string | null) ?? null,
-    companies,
+      authorizationVersion: str(c.authorizationVersion ?? c.authorization_version),
+    })),
   };
+
+  const session = sessionSchema.parse(normalized);
+  if (requestedCompanyId && session.companyId !== requestedCompanyId) {
+    throw new Error('ERP returned a different company than the authorized selection');
+  }
+  return session;
+}
+
+type OperationalMetric = {
+  key: string;
+  label: string;
+  detail: string;
+  route: string | null;
+};
+
+const OPERATIONAL_METRICS: OperationalMetric[] = [
+  {
+    key: 'pendingPurchaseOrderApprovals',
+    label: 'PO approvals',
+    detail: 'awaiting review',
+    route: '/purchasing',
+  },
+  { key: 'receiptsInProgress', label: 'Receipts', detail: 'in progress', route: '/receiving' },
+  { key: 'openPutawayTasks', label: 'Putaway', detail: 'tasks waiting', route: '/receiving' },
+  { key: 'expiringLotsSevenDays', label: 'Expiring lots', detail: 'within 7 days', route: '/inventory' },
+  { key: 'vendorBillsOnHold', label: 'Vendor bills', detail: 'on hold', route: null },
+];
+
+/** Map only fields owned by the ERP operational-dashboard contract. */
+export function toOperationalHomeSummary(payload: Row): HomeSummary {
+  const metrics = (payload.metrics ?? {}) as Row;
+  const tiles: HubMetric[] = OPERATIONAL_METRICS.flatMap((definition) => {
+    const value = numOrNull(metrics[definition.key]);
+    if (value === null) return [];
+    return [
+      {
+        key: definition.key,
+        label: definition.label,
+        value: String(value),
+        delta: null,
+        tone: value > 0 ? 'warn' : 'good',
+      },
+    ];
+  });
+
+  const needsYou = asRows(payload.attention).flatMap((item): ActionItem[] => {
+    const kind = str(item.kind);
+    const sourceId = str(item.sourceId);
+    if (!sourceId) return [];
+
+    switch (kind) {
+      case 'purchase_order_approval': {
+        const purchaseOrderId = str(item.purchaseOrderId);
+        return [
+          {
+            key: `${kind}:${sourceId}`,
+            title: `${str(item.documentNumber, 'Purchase order')} awaiting approval`,
+            workspace: 'Purchasing',
+            count: 1,
+            route: purchaseOrderId ? `/purchasing/${purchaseOrderId}` : '/purchasing',
+          },
+        ];
+      }
+      case 'goods_receipt':
+        return [
+          {
+            key: `${kind}:${sourceId}`,
+            title: `${str(item.documentNumber, 'Receipt')} in progress`,
+            workspace: 'Warehouse',
+            count: 1,
+            route: '/receiving',
+          },
+        ];
+      case 'putaway_task':
+        return [
+          {
+            key: `${kind}:${sourceId}`,
+            title: `${str(item.documentNumber, 'Receipt')} · lot ${str(item.lotCode, 'unassigned')}`,
+            workspace: 'Warehouse',
+            count: 1,
+            route: '/receiving',
+          },
+        ];
+      case 'expiring_lot': {
+        const productId = str(item.productId);
+        const days = num(item.daysToExpiry);
+        return [
+          {
+            key: `${kind}:${sourceId}`,
+            title: `${str(item.productName, 'Inventory lot')} expires in ${days} day${days === 1 ? '' : 's'}`,
+            workspace: 'Inventory',
+            count: 1,
+            route: productId ? `/item/${productId}` : '/inventory',
+          },
+        ];
+      }
+      case 'vendor_bill_hold':
+        return [
+          {
+            key: `${kind}:${sourceId}`,
+            title: `${str(item.vendorInvoiceNumber, str(item.documentNumber, 'Vendor bill'))} is on hold`,
+            workspace: 'Finance',
+            count: num(item.activeHoldCount, 1),
+            route: null,
+          },
+        ];
+      default:
+        return [];
+    }
+  });
+
+  const acrossCompany: ActivityLine[] = OPERATIONAL_METRICS.flatMap((definition) => {
+    const value = numOrNull(metrics[definition.key]);
+    if (value === null) return [];
+    return [
+      {
+        key: definition.key,
+        label: definition.label,
+        detail: `${value} ${definition.detail}`,
+        route: definition.route,
+      },
+    ];
+  });
+
+  return { greetingName: '', tiles, needsYou, acrossCompany, aiSummary: null };
 }
 
 export const supabaseApi: FoodlineApi = {
@@ -250,56 +403,25 @@ export const supabaseApi: FoodlineApi = {
     async resolve(companyId) {
       if (!(await workos.hasStoredSession())) return null;
       const payload = await call(companyId, 'application_session_context', { p_company_id: companyId });
-      return toSession(payload);
+      return toSession(payload, companyId);
     },
   },
 
   home: {
     /**
-     * Assembled from the commercial dashboard RPC. The ERP's payload shape for
-     * `needs_you` / `across_company` is not pinned down yet, so unknown keys are
-     * simply absent rather than guessed — the screen degrades to tiles only.
+     * The mobile home uses the same permission-aware operational snapshot as
+     * the ERP dashboard. Its contract is stable and carries both reconciled
+     * metrics and actionable records; do not point this back at the commercial
+     * chart payload, which has no `needsYou` contract and produced a blank app.
      */
     async summary(companyId): Promise<HomeSummary> {
-      const payload = (await call(companyId, 'get_current_commercial_dashboard')) as Row;
-      const tiles = asRows(payload, 'metrics', 'tiles', 'kpis').map((r) => ({
-        key: str(r.key ?? r.id),
-        label: str(r.label ?? r.title),
-        value: str(r.value ?? r.formatted_value),
-        delta: numOrNull(r.delta ?? r.change_percent),
-        tone: (r.tone as HomeSummary['tiles'][number]['tone']) ?? ('neutral' as const),
-      }));
-      const needsYou = asRows(payload.needs_you ?? payload.needsYou).map(
-        (r): ActionItem => ({
-          key: str(r.key ?? r.id),
-          title: str(r.title ?? r.label),
-          workspace: str(r.workspace ?? r.module),
-          count: num(r.count),
-          route: (r.route as string | null) ?? null,
-        })
-      );
-      const acrossCompany = asRows(payload.across_company ?? payload.acrossCompany).map(
-        (r): ActivityLine => ({
-          key: str(r.key ?? r.id),
-          label: str(r.label),
-          detail: str(r.detail ?? r.summary),
-          route: (r.route as string | null) ?? null,
-        })
-      );
-      const ai = payload.ai_summary ?? payload.aiSummary;
-      return {
-        greetingName: str(payload.greeting_name ?? payload.greetingName),
-        tiles: tiles.slice(0, 2),
-        needsYou,
-        acrossCompany,
-        aiSummary:
-          ai && typeof ai === 'object'
-            ? {
-                body: str((ai as Row).body ?? (ai as Row).summary),
-                actionLabel: str((ai as Row).action_label ?? (ai as Row).actionLabel, 'Review impact'),
-              }
-            : null,
-      };
+      const payload = (await call(companyId, 'get_current_operational_dashboard')) as Row;
+      if (payload.schemaVersion !== 1) throw new Error('Unsupported operational dashboard response');
+      if (payload.organizationId !== companyId) throw new Error('ERP returned dashboard data for a different company');
+      if (!payload.metrics || typeof payload.metrics !== 'object' || !Array.isArray(payload.attention)) {
+        throw new Error('Invalid operational dashboard response');
+      }
+      return toOperationalHomeSummary(payload);
     },
   },
 
@@ -307,15 +429,13 @@ export const supabaseApi: FoodlineApi = {
     async metrics(companyId) {
       const payload = await call(companyId, 'get_current_commercial_dashboard');
       const rows = asRows(payload, 'metrics', 'tiles', 'kpis');
-      return rows.map(
-        (r): HubMetric => ({
-          key: str(r.key ?? r.id),
-          label: str(r.label ?? r.title),
-          value: str(r.value ?? r.formatted_value),
-          delta: numOrNull(r.delta ?? r.change_percent),
-          tone: (r.tone as HubMetric['tone']) ?? 'neutral',
-        })
-      );
+      return rows.map((r): HubMetric => ({
+        key: str(r.key ?? r.id),
+        label: str(r.label ?? r.title),
+        value: str(r.value ?? r.formatted_value),
+        delta: numOrNull(r.delta ?? r.change_percent),
+        tone: (r.tone as HubMetric['tone']) ?? 'neutral',
+      }));
     },
   },
 
@@ -368,7 +488,9 @@ export const supabaseApi: FoodlineApi = {
     },
 
     async detail(companyId, purchaseOrderId) {
-      const payload = await call(companyId, 'get_purchase_order_workspace', { p_purchase_order_id: purchaseOrderId });
+      const payload = await call(companyId, 'get_purchase_order_workspace', {
+        p_purchase_order_id: purchaseOrderId,
+      });
       return toPurchaseOrderDetail(payload as Row);
     },
   },
@@ -395,11 +517,15 @@ export const supabaseApi: FoodlineApi = {
       return asRows(payload.customers, 'rows').map(toCustomer);
     },
     async orderDetail(companyId, salesOrderId) {
-      const payload = await call(companyId, 'get_current_sales_order_detail', { p_sales_order_id: salesOrderId });
+      const payload = await call(companyId, 'get_current_sales_order_detail', {
+        p_sales_order_id: salesOrderId,
+      });
       return toSalesOrderDetail(payload as Row);
     },
     async orderFulfillment(companyId, salesOrderId) {
-      const payload = await call(companyId, 'get_current_sales_order_fulfillment', { p_sales_order_id: salesOrderId });
+      const payload = await call(companyId, 'get_current_sales_order_fulfillment', {
+        p_sales_order_id: salesOrderId,
+      });
       return toSalesOrderFulfillment(payload as Row);
     },
     async cancelRemainder(companyId, input) {
@@ -431,7 +557,9 @@ export const supabaseApi: FoodlineApi = {
       const payload = (await call(companyId, 'get_current_delivery_route_workspace')) as Row;
       const routes = asRows(payload, 'routes');
       const route =
-        routes.find((r) => r.status === 'in_progress') ?? routes.find((r) => r.status === 'ready') ?? routes[0];
+        routes.find((r) => r.status === 'in_progress') ??
+        routes.find((r) => r.status === 'ready') ??
+        routes[0];
       if (!route) return null;
       const stops = asRows(route.stops).map(toStop);
       const vehicle = route.vehicle as Row | null | undefined;
@@ -445,7 +573,9 @@ export const supabaseApi: FoodlineApi = {
       };
     },
     async stop(companyId, stopId): Promise<StopDetail | null> {
-      const payload = (await call(companyId, 'get_current_delivery_stop_detail', { p_stop_id: stopId })) as Row;
+      const payload = (await call(companyId, 'get_current_delivery_stop_detail', {
+        p_stop_id: stopId,
+      })) as Row;
       if (!payload || !payload.stopId) return null;
       // Confirmed absent from this RPC, not guessed: no sequence, address or
       // delivery window on the detail payload — only the route-list rows
@@ -460,14 +590,12 @@ export const supabaseApi: FoodlineApi = {
         rowVersion: num(payload.stopRowVersion, 1),
       };
       const lines: ShipmentLine[] = asRows(payload.shipments).flatMap((shipment) =>
-        asRows(shipment.lines).map(
-          (l): ShipmentLine => ({
-            id: str(l.shipmentLineId),
-            productName: str(l.productName, 'Unknown item'),
-            quantity: num(l.quantity),
-            baseQuantity: num(l.baseQuantity),
-          })
-        )
+        asRows(shipment.lines).map((l): ShipmentLine => ({
+          id: str(l.shipmentLineId),
+          productName: str(l.productName, 'Unknown item'),
+          quantity: num(l.quantity),
+          baseQuantity: num(l.baseQuantity),
+        }))
       );
       return {
         stop,
@@ -572,7 +700,10 @@ export const supabaseApi: FoodlineApi = {
 
   vendors: {
     async detail(companyId, vendorId) {
-      const payload = await call(companyId, 'vendor_read', { p_company_id: companyId, p_vendor_id: vendorId });
+      const payload = await call(companyId, 'vendor_read', {
+        p_company_id: companyId,
+        p_vendor_id: vendorId,
+      });
       return toVendorDetail(payload as Row);
     },
   },
@@ -585,10 +716,13 @@ export const supabaseApi: FoodlineApi = {
 
   voice: {
     async start() {
-      // The ERP's web voice is browser WebRTC with a server-minted OpenAI
-      // Realtime secret; PR #314 exposes no mobile route for it, and a native
-      // WebRTC client isn't in this app. Not inventing an endpoint.
-      return { available: false, reason: "Voice isn't available yet — the ERP has no mobile voice route." };
+      // The ERP route can now mint a scoped, short-lived Realtime credential.
+      // Native microphone capture remains deliberately disabled until the
+      // user explicitly consents to sending spoken audio to OpenAI Realtime.
+      return {
+        available: false,
+        reason: 'Voice setup is ready. Microphone streaming needs your approval before it can be enabled.',
+      };
     },
   },
 
@@ -604,8 +738,11 @@ export const supabaseApi: FoodlineApi = {
       const detail = toReviewDetail(raw as Row);
       if (!detail) return null;
       // Prefer the PO the reviewer already saved against; else the parser's match.
-      const poId = (((raw as Row).corrections as Row | null)?.purchaseOrderId as string | undefined) ?? detail.purchaseOrder.id;
-      if (!poId) return { detail, order: null, orderError: 'The parser did not match this document to an order.' };
+      const poId =
+        (((raw as Row).corrections as Row | null)?.purchaseOrderId as string | undefined) ??
+        detail.purchaseOrder.id;
+      if (!poId)
+        return { detail, order: null, orderError: 'The parser did not match this document to an order.' };
       try {
         const po = await call(companyId, 'get_purchase_order_workspace', { p_purchase_order_id: poId });
         const order = toReviewOrderContext(po as Row);

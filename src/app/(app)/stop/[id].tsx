@@ -10,7 +10,6 @@ import { AppHeader, initialsFrom } from '@/components/app-header';
 import { Button, EmptyState, ErrorState, Group, ListRow, Loading, Screen, StaleBanner, StatusPill } from '@/components/ui';
 import { useAuth, useCompanyId } from '@/features/auth/auth-context';
 import { api, type ShipmentLine } from '@/lib/api';
-import { openLiveErp } from '@/lib/open-erp';
 
 const STOP_STATUS_PILL: Record<string, { status: string; label: string }> = {
   planned: { status: 'partial', label: 'Not yet arrived' },
@@ -45,7 +44,6 @@ export default function StopDetail() {
   const [recipient, setRecipient] = useState('');
   const [reason, setReason] = useState('');
   const [shortLineIds, setShortLineIds] = useState<Set<string>>(new Set());
-  const [openingScanner, setOpeningScanner] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   const detail = useQuery({
@@ -53,19 +51,6 @@ export default function StopDetail() {
     queryFn: () => api.routes.stop(companyId, id!),
     enabled: Boolean(id),
   });
-
-  async function openScanner() {
-    if (openingScanner) return;
-    setOpeningScanner(true);
-    setMessage(null);
-    try {
-      await openLiveErp('/scanner-work');
-    } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : 'The live scanner workflow could not be opened.');
-    } finally {
-      setOpeningScanner(false);
-    }
-  }
 
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ['stop', companyId, id] });
@@ -203,13 +188,6 @@ export default function StopDetail() {
                       })}
                     </Group>
                   )}
-                  <Button
-                    label="Scan shipment label"
-                    icon="maximize"
-                    variant="ghost"
-                    loading={openingScanner}
-                    onPress={() => void openScanner()}
-                  />
                 </View>
 
                 <View className="gap-3">

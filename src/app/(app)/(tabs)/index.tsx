@@ -30,6 +30,13 @@ const WORKSPACE_ICONS: Record<string, IconName> = {
   Warehouse: 'home',
 };
 
+const METRIC_ROUTES: Record<string, string> = {
+  pendingPurchaseOrderApprovals: '/purchasing',
+  receiptsInProgress: '/receiving',
+  openPutawayTasks: '/receiving',
+  expiringLotsSevenDays: '/inventory',
+};
+
 export default function Home() {
   const { company, session } = useAuth();
   const companyId = useCompanyId();
@@ -75,9 +82,14 @@ export default function Home() {
             </View>
 
             {home.data.tiles.length > 0 ? (
-              <View className="flex-row gap-3">
+              <View className="flex-row flex-wrap gap-3">
                 {home.data.tiles.map((tile) => (
-                  <StatTile key={tile.key} label={tile.label} value={tile.value} />
+                  <StatTile
+                    key={tile.key}
+                    label={tile.label}
+                    value={tile.value}
+                    onPress={METRIC_ROUTES[tile.key] ? () => router.push(METRIC_ROUTES[tile.key] as never) : undefined}
+                  />
                 ))}
               </View>
             ) : null}

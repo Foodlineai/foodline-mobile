@@ -28,8 +28,9 @@ export type CompanyOption = {
 
 export type Actor = {
   id: string;
-  name: string;
-  email: string;
+  /** Null until the live identity contract supplies these fields. */
+  name: string | null;
+  email: string | null;
   initials: string;
 };
 

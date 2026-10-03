@@ -1,13 +1,17 @@
 import React from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { LiveErpFlow } from '@/components/live-erp-flow';
+import { EmptyState, Screen } from '@/components/ui';
 
 export default function NewPurchaseOrder() {
   return (
-    <LiveErpFlow
-      title="Create purchase order"
-      description="Select a live vendor catalog, review exact pricing, and submit the governed purchase order."
-      path="/purchase-orders/new"
-    />
+    <Screen>
+      <SafeAreaView className="flex-1" edges={['top']}>
+        <EmptyState
+          title="Purchase order entry is not available yet"
+          hint="This workflow will stay in the app once its governed draft and submit commands are connected."
+        />
+      </SafeAreaView>
+    </Screen>
   );
 }

@@ -145,8 +145,8 @@ export function AccountScreen({
           <Text style={styles.avatarText}>{actor.initials}</Text>
         </View>
         <View style={styles.grow}>
-          <Text style={styles.name}>{actor.name}</Text>
-          <Text style={styles.rowMeta}>{actor.email}</Text>
+          {actor.name ? <Text style={styles.name}>{actor.name}</Text> : null}
+          {actor.email ? <Text style={styles.rowMeta}>{actor.email}</Text> : null}
         </View>
       </View>
 
