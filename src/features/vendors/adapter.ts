@@ -1,4 +1,4 @@
-import type { VendorDetail } from './types';
+import type { VendorDetail, VendorListItem } from './types';
 
 /**
  * Vendor detail adapter.
@@ -31,6 +31,15 @@ const str = (v: unknown, fallback = ''): string =>
 
 const num = (v: unknown): number | null =>
   typeof v === 'number' && Number.isFinite(v) ? v : null;
+
+const whole = (v: unknown): number | null => {
+  if (typeof v === 'number' && Number.isSafeInteger(v) && v >= 0) return v;
+  if (typeof v === 'string' && /^\d+$/.test(v)) {
+    const parsed = Number(v);
+    return Number.isSafeInteger(parsed) ? parsed : null;
+  }
+  return null;
+};
 
 function money(value: unknown, currency: string): string {
   const n = typeof value === 'string' ? Number(value) : typeof value === 'number' ? value : NaN;
@@ -73,4 +82,37 @@ export function toVendorDetail(raw: Raw | null | undefined): VendorDetail | null
     })),
     canReadCost: Boolean(purchaseOrders?.canReadCost),
   };
+}
+
+/** Maps the complete, company-scoped `vendor_directory_snapshot` response. */
+export function toVendorListItems(raw: unknown): VendorListItem[] {
+  if (!raw || typeof raw !== 'object') throw new Error('Vendor directory returned an invalid response');
+  const rows = (raw as Raw).rows;
+  if (!Array.isArray(rows)) throw new Error('Vendor directory returned an invalid response');
+
+  return rows.map((value, index) => {
+    if (!value || typeof value !== 'object') throw new Error(`Vendor directory row ${index + 1} is invalid`);
+    const row = value as Raw;
+    const id = str(row.id);
+    const name = str(row.name);
+    const code = str(row.code);
+    const rawStatus = str(row.status);
+    if (!id || !name || !code || !['active', 'inactive', 'on-hold'].includes(rawStatus)) {
+      throw new Error(`Vendor directory row ${index + 1} is invalid`);
+    }
+    const profile = row.profile && typeof row.profile === 'object' ? (row.profile as Raw) : null;
+    const purchaseOrders =
+      row.purchaseOrders && typeof row.purchaseOrders === 'object' ? (row.purchaseOrders as Raw) : null;
+    return {
+      id,
+      name,
+      code,
+      status: rawStatus as VendorListItem['status'],
+      category: profile ? str(profile.category) || null : null,
+      orderEmail: profile ? str(profile.orderEmail) || null : null,
+      phone: profile ? str(profile.phone) || null : null,
+      leadDays: profile ? whole(profile.leadDays) : null,
+      openOrderCount: purchaseOrders ? whole(purchaseOrders.openCount) : null,
+    };
+  });
 }

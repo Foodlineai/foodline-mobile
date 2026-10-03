@@ -16,3 +16,15 @@ export type VendorDetail = {
   openAmounts: { currency: string; value: string }[];
   canReadCost: boolean;
 };
+
+export type VendorListItem = {
+  id: string;
+  name: string;
+  code: string;
+  status: 'active' | 'inactive' | 'on-hold';
+  category: string | null;
+  orderEmail: string | null;
+  phone: string | null;
+  leadDays: number | null;
+  openOrderCount: number | null;
+};
