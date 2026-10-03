@@ -17,7 +17,18 @@ import type {
 } from './types';
 import type { CustomerDetail } from '@/features/customers/types';
 import type { ItemDetail } from '@/features/items/detail/types';
+import type {
+  CycleCountEntry,
+  CycleCountLease,
+  CycleCountSheetWorkspace,
+  CycleCountWorkspace,
+} from '@/features/inventory/cycle-counts/types';
 import type { PurchaseOrderDetail } from '@/features/purchasing/order-detail/types';
+import type {
+  CreatedPurchaseOrder,
+  NewPoDraft,
+  PurchaseOrderCreationWorkspace,
+} from '@/features/purchasing/types';
 import type { DraftedPurchaseOrder } from '@/features/routines/types';
 import type { SalesOrderDetail } from '@/features/sales/order-detail/types';
 import type { SalesOrderFulfillment } from '@/features/sales/order-detail/fulfillment-types';
@@ -25,7 +36,7 @@ import type { Interaction, TurnInput, TurnResult } from '@/features/copilot/type
 import type { VoiceStartResult } from '@/features/copilot/voice/types';
 import type { ReviewDetail, ReviewOrderContext, ReviewSummary } from '@/features/receiving/documents/types';
 import type { ShipmentDraft, ShipmentTarget } from '@/features/shipments/types';
-import type { VendorDetail } from '@/features/vendors/types';
+import type { VendorDetail, VendorListItem } from '@/features/vendors/types';
 
 /**
  * The single seam between the app and the ERP.
@@ -57,6 +68,30 @@ export interface FoodlineApi {
      */
     detail(companyId: UUID, productId: UUID): Promise<ItemDetail | null>;
   };
+  cycleCounts: {
+    /** `get_current_cycle_counts_workspace` — live, permission-scoped count sessions. */
+    workspace(companyId: UUID): Promise<CycleCountWorkspace>;
+    /** `get_current_cycle_count_sheet` — blind-count fields remain null until the ERP reveals them. */
+    sheet(companyId: UUID, sessionId: UUID, sheetId: UUID): Promise<CycleCountSheetWorkspace>;
+    claim(
+      companyId: UUID,
+      input: { countId: UUID; expectedVersion: string; idempotencyKey: UUID }
+    ): Promise<CycleCountLease>;
+    saveEntries(
+      companyId: UUID,
+      input: { countId: UUID; leaseToken: UUID; leaseFence: string; entries: CycleCountEntry[] }
+    ): Promise<void>;
+    submit(
+      companyId: UUID,
+      input: {
+        countId: UUID;
+        expectedVersion: string;
+        leaseToken: UUID;
+        leaseFence: string;
+        idempotencyKey: UUID;
+      }
+    ): Promise<void>;
+  };
   purchaseOrders: {
     list(companyId: UUID, params?: { openOnly?: boolean }): Promise<PurchaseOrder[]>;
     /** Powers the Purchasing module screen (mockup 03). */
@@ -68,6 +103,10 @@ export interface FoodlineApi {
      * also missing — see `features/purchasing/order-detail/adapter.ts`.
      */
     detail(companyId: UUID, purchaseOrderId: UUID): Promise<PurchaseOrderDetail | null>;
+    /** Authorized vendors, warehouses, exact vendor products and live costs. */
+    creationWorkspace(companyId: UUID): Promise<PurchaseOrderCreationWorkspace>;
+    /** Preview, create and submit with one idempotency key and an exact quote hash. */
+    createAndSubmit(companyId: UUID, draft: NewPoDraft, idempotencyKey: UUID): Promise<CreatedPurchaseOrder>;
   };
   sales: {
     /** `get_current_sales_orders_workspace` — one call for the Sales screen. */
@@ -102,10 +141,17 @@ export interface FoodlineApi {
      */
     allocateBackorder(
       companyId: UUID,
-      input: { salesOrderLineId: UUID; expectedOrderRowVersion: number; quantity: number | null; idempotencyKey: string }
+      input: {
+        salesOrderLineId: UUID;
+        expectedOrderRowVersion: number;
+        quantity: number | null;
+        idempotencyKey: string;
+      }
     ): Promise<void>;
   };
   vendors: {
+    /** Complete company-scoped `vendor_directory_snapshot`, filtered locally on device. */
+    list(companyId: UUID): Promise<VendorListItem[]>;
     /** `vendor_read` — confirmed against the live ERP source 1 Oct. Requires `vendors.read`. */
     detail(companyId: UUID, vendorId: UUID): Promise<VendorDetail | null>;
   };
@@ -141,7 +187,12 @@ export interface FoodlineApi {
         expectedRouteVersion: number;
         recipientName: string | null;
         reason: string | null;
-        lines: { shipmentLineId: UUID; deliveredBaseQuantity: number; refusedBaseQuantity: number; shortBaseQuantity: number }[];
+        lines: {
+          shipmentLineId: UUID;
+          deliveredBaseQuantity: number;
+          refusedBaseQuantity: number;
+          shortBaseQuantity: number;
+        }[];
         idempotencyKey: string;
       }
     ): Promise<void>;
@@ -183,7 +234,10 @@ export interface FoodlineApi {
      */
     turn(companyId: UUID, input: TurnInput): Promise<TurnResult>;
     /** `POST /api/mobile/copilot/action` `kind: 'review'` — turns answers into a reviewable proposal. */
-    reviewAction(companyId: UUID, input: { workflow: string; answers: Record<string, string> }): Promise<Interaction>;
+    reviewAction(
+      companyId: UUID,
+      input: { workflow: string; answers: Record<string, string> }
+    ): Promise<Interaction>;
     /** `POST /api/mobile/copilot/action` `kind: 'execute'` — commits one proposal; the server token is the authority. */
     executeAction(companyId: UUID, proposalToken: string): Promise<Interaction>;
   };
@@ -207,7 +261,12 @@ export interface FoodlineApi {
     /** `save_governed_receiving_document_review` — persists corrections server-side; writes nothing else. */
     saveCorrections(
       companyId: UUID,
-      input: { reviewId: UUID; expectedRowVersion: number; corrections: Record<string, unknown>; idempotencyKey: string }
+      input: {
+        reviewId: UUID;
+        expectedRowVersion: number;
+        corrections: Record<string, unknown>;
+        idempotencyKey: string;
+      }
     ): Promise<{ rowVersion: number }>;
     /**
      * `materialize_and_approve_governed_receiving_document_review` — creates

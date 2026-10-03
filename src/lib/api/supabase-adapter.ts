@@ -29,16 +29,32 @@ import { toCustomerDetail } from '@/features/customers/adapter';
 import { liveExecuteAction, liveReviewAction, liveTurn } from '@/features/copilot/client';
 import { toItemDetail } from '@/features/items/detail/adapter';
 import {
+  confirmSavedCycleCountEntries,
+  confirmSubmittedCycleCount,
+  toCycleCountLease,
+  toCycleCountSheetWorkspace,
+  toCycleCountWorkspace,
+} from '@/features/inventory/cycle-counts/adapter';
+import {
   toReviewDetail,
   toReviewOrderContext,
   toReviewSummary,
 } from '@/features/receiving/documents/adapter';
 import type { ReviewSummary } from '@/features/receiving/documents/types';
 import { toPurchaseOrderDetail } from '@/features/purchasing/order-detail/adapter';
+import {
+  confirmPurchaseOrderPreview,
+  confirmSavedPurchaseOrder,
+  confirmSubmittedPurchaseOrder,
+  draftOnlyResult,
+  purchaseOrderCreationError,
+  toPurchaseOrderCreationWorkspace,
+  toPurchaseOrderRpcInput,
+} from '@/features/purchasing/creation-adapter';
 import type { DraftedPurchaseOrder } from '@/features/routines/types';
 import { toSalesOrderDetail, toSalesOrderFulfillment } from '@/features/sales/order-detail/adapter';
 import type { ShipmentDraft } from '@/features/shipments/types';
-import { toVendorDetail } from '@/features/vendors/adapter';
+import { toVendorDetail, toVendorListItems } from '@/features/vendors/adapter';
 
 /**
  * Live adapter. Every call is an RPC — there are no direct table reads, because
@@ -417,7 +433,8 @@ export const supabaseApi: FoodlineApi = {
     async summary(companyId): Promise<HomeSummary> {
       const payload = (await call(companyId, 'get_current_operational_dashboard')) as Row;
       if (payload.schemaVersion !== 1) throw new Error('Unsupported operational dashboard response');
-      if (payload.organizationId !== companyId) throw new Error('ERP returned dashboard data for a different company');
+      if (payload.organizationId !== companyId)
+        throw new Error('ERP returned dashboard data for a different company');
       if (!payload.metrics || typeof payload.metrics !== 'object' || !Array.isArray(payload.attention)) {
         throw new Error('Invalid operational dashboard response');
       }
@@ -452,6 +469,46 @@ export const supabaseApi: FoodlineApi = {
     async detail(companyId, productId) {
       const payload = await call(companyId, 'get_current_product_workspace', { p_product_id: productId });
       return toItemDetail(payload as Row);
+    },
+  },
+
+  cycleCounts: {
+    async workspace(companyId) {
+      return toCycleCountWorkspace(await call(companyId, 'get_current_cycle_counts_workspace'), companyId);
+    },
+    async sheet(companyId, sessionId, sheetId) {
+      const payload = await call(companyId, 'get_current_cycle_count_sheet', {
+        p_session_id: sessionId,
+        p_sheet_id: sheetId,
+      });
+      return toCycleCountSheetWorkspace(payload, companyId, sessionId, sheetId);
+    },
+    async claim(companyId, input) {
+      const payload = await call(companyId, 'claim_current_cycle_count', {
+        p_command_key: input.idempotencyKey,
+        p_count_id: input.countId,
+        p_expected_version: input.expectedVersion,
+      });
+      return toCycleCountLease(payload);
+    },
+    async saveEntries(companyId, input) {
+      const payload = await call(companyId, 'save_current_cycle_count_entries', {
+        p_count_id: input.countId,
+        p_entries: input.entries,
+        p_lease_fence: input.leaseFence,
+        p_lease_token: input.leaseToken,
+      });
+      confirmSavedCycleCountEntries(payload, input.entries.length);
+    },
+    async submit(companyId, input) {
+      const payload = await call(companyId, 'submit_current_cycle_count', {
+        p_command_key: input.idempotencyKey,
+        p_count_id: input.countId,
+        p_expected_version: input.expectedVersion,
+        p_lease_fence: input.leaseFence,
+        p_lease_token: input.leaseToken,
+      });
+      confirmSubmittedCycleCount(payload);
     },
   },
 
@@ -492,6 +549,79 @@ export const supabaseApi: FoodlineApi = {
         p_purchase_order_id: purchaseOrderId,
       });
       return toPurchaseOrderDetail(payload as Row);
+    },
+
+    async creationWorkspace(companyId) {
+      try {
+        const payload = await call(companyId, 'purchase_order_editor_references', {
+          p_company_id: companyId,
+          p_vendor_id: null,
+          p_order_date: null,
+          p_currency_code: 'USD',
+        });
+        return toPurchaseOrderCreationWorkspace(payload, companyId);
+      } catch (error) {
+        throw purchaseOrderCreationError(error);
+      }
+    },
+
+    async createAndSubmit(companyId, draft, idempotencyKey) {
+      try {
+        const input = toPurchaseOrderRpcInput(draft);
+        const rpcArgs = {
+          p_company_id: companyId,
+          p_vendor_id: input.vendorId,
+          p_warehouse_id: input.warehouseId,
+          p_order_date: input.orderDate,
+          p_expected_delivery_date: input.expectedDeliveryDate,
+          p_lines: input.lines,
+          p_charges: input.charges,
+          p_allocation_method: input.allocationMethod,
+          p_buyer_actor_id: input.buyerActorId,
+          p_source: input.source,
+        };
+        const preview = confirmPurchaseOrderPreview(
+          await call(companyId, 'preview_purchase_order_draft', {
+            ...rpcArgs,
+            p_purchase_order_id: null,
+          }),
+          companyId,
+          input
+        );
+        const saved = confirmSavedPurchaseOrder(
+          await call(companyId, 'create_purchase_order_from_preview', {
+            ...rpcArgs,
+            p_command_key: idempotencyKey,
+            p_expected_quote_hash: preview.quoteHash,
+            p_vendor_reference: null,
+            p_notes: draft.note,
+          }),
+          preview.quoteHash
+        );
+
+        try {
+          return confirmSubmittedPurchaseOrder(
+            await call(companyId, 'submit_purchase_order_command', {
+              p_command_key: idempotencyKey,
+              p_expected_row_version: saved.rowVersion,
+              p_purchase_order_id: saved.purchaseOrderId,
+              p_purchase_order_version_id: saved.purchaseOrderVersionId,
+            }),
+            saved
+          );
+        } catch (error) {
+          const message = error instanceof Error ? error.message : '';
+          if (/approval_policy_missing|not_submittable|submission_unavailable/i.test(message)) {
+            return draftOnlyResult(
+              saved,
+              'The draft was created, but ERP approval settings prevented submission. Open the order to review it.'
+            );
+          }
+          throw error;
+        }
+      } catch (error) {
+        throw purchaseOrderCreationError(error);
+      }
     },
   },
 
@@ -699,6 +829,11 @@ export const supabaseApi: FoodlineApi = {
   },
 
   vendors: {
+    async list(companyId) {
+      return toVendorListItems(
+        await call(companyId, 'vendor_directory_snapshot', { p_company_id: companyId })
+      );
+    },
     async detail(companyId, vendorId) {
       const payload = await call(companyId, 'vendor_read', {
         p_company_id: companyId,

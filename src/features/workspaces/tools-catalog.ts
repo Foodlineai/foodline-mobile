@@ -53,7 +53,7 @@ export const TOOLS_MODULES: Record<string, ToolsModule> = {
     title: 'Purchasing tools',
     groups: ['Purchasing', 'Receiving & stock', 'Supporting tools'],
     tools: [
-      { key: 'vendors', label: 'Vendors', icon: 'users', group: 'Purchasing', route: null },
+      { key: 'vendors', label: 'Vendors', icon: 'users', group: 'Purchasing', route: '/vendors' },
       { key: 'order-guide', label: 'Order guide', icon: 'clipboard', group: 'Purchasing', route: null },
       { key: 'pos', label: 'Purchase orders', icon: 'file-text', group: 'Purchasing', route: '/purchasing' },
       { key: 'issues', label: 'Receiving issues', icon: 'alert-triangle', group: 'Purchasing', route: '/receiving' },
@@ -75,7 +75,7 @@ export const TOOLS_MODULES: Record<string, ToolsModule> = {
     tools: [
       { key: 'items', label: 'Items & locations', icon: 'box', group: 'Stock', route: '/inventory' },
       { key: 'lots', label: 'Lots & expiry', icon: 'tag', group: 'Stock', route: '/inventory' },
-      { key: 'counts', label: 'Cycle counts', icon: 'list', group: 'Stock', route: null },
+      { key: 'counts', label: 'Cycle counts', icon: 'list', group: 'Stock', route: '/inventory/counts' },
       { key: 'transfers', label: 'Transfers & adjustments', icon: 'repeat', group: 'Stock', route: null },
       { key: 'traceability', label: 'Traceability', icon: 'share-2', group: 'Stock', route: null },
       { key: 'scanner', label: 'Scanner work', icon: 'maximize', group: 'Warehouse work', route: '/receiving' },
