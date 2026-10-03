@@ -5,7 +5,20 @@ import { FoodlineButton } from '../../components/FoodlineButton';
 import { Card, CardRow, Mono, StatusPill, StepProgress, type Step } from '../../components/primitives';
 import { Attempt } from '../../actions/idempotency';
 import { colors, radius, space, type as typeScale } from '../../theme/tokens';
-import type { CatalogItem, DraftLine, NewPoDraft, VendorOption } from './types';
+import {
+  adjustOrderQuantity,
+  exactLineTotal,
+  exactOrderTotal,
+  firstOrderableQuantity,
+} from './creation-adapter';
+import type {
+  CatalogItem,
+  CreatedPurchaseOrder,
+  DraftLine,
+  NewPoDraft,
+  VendorOption,
+  WarehouseOption,
+} from './types';
 
 /**
  * P1 — New purchase order, end to end.
@@ -38,16 +51,18 @@ const STEP_LABELS: Record<Exclude<Phase, 'done'>, string> = {
 
 export type NewPurchaseOrderFlowProps = {
   vendors: VendorOption[];
-  /** Catalog for the chosen vendor. Refetched when the vendor changes. */
+  warehouses: WarehouseOption[];
+  orderDate: string;
   catalogFor: (vendorId: string) => CatalogItem[];
-  /** Resolves to the created PO's reference. Throws on failure. */
-  onCommit: (draft: NewPoDraft, attempt: Attempt) => Promise<string>;
-  onOpenPurchaseOrder: (reference: string) => void;
+  onCommit: (draft: NewPoDraft, attempt: Attempt) => Promise<CreatedPurchaseOrder>;
+  onOpenPurchaseOrder: (id: string) => void;
   onCancel: () => void;
 };
 
 export function NewPurchaseOrderFlow({
   vendors,
+  warehouses,
+  orderDate,
   catalogFor,
   onCommit,
   onOpenPurchaseOrder,
@@ -55,13 +70,16 @@ export function NewPurchaseOrderFlow({
 }: NewPurchaseOrderFlowProps) {
   const [phase, setPhase] = useState<Phase>('vendor');
   const [vendor, setVendor] = useState<VendorOption | null>(null);
+  const [warehouse, setWarehouse] = useState<WarehouseOption | null>(
+    warehouses.length === 1 ? (warehouses[0] ?? null) : null
+  );
   const [lines, setLines] = useState<DraftLine[]>([]);
   const [expectedDate, setExpectedDate] = useState('');
   const [note, setNote] = useState('');
 
   const [committing, setCommitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [created, setCreated] = useState<string | null>(null);
+  const [created, setCreated] = useState<CreatedPurchaseOrder | null>(null);
 
   /**
    * Held across retries on purpose. If the network drops mid-commit, the retry
@@ -69,34 +87,29 @@ export function NewPurchaseOrderFlow({
    */
   const [attempt, setAttempt] = useState<Attempt | null>(null);
 
-  const total = useMemo(
-    () => lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0),
-    [lines],
-  );
+  const total = useMemo(() => exactOrderTotal(lines), [lines]);
 
   const steps: Step[] = (['vendor', 'items', 'review'] as const).map((p) => ({
     label: STEP_LABELS[p],
-    state:
-      phase === 'done'
-        ? 'done'
-        : p === phase
-          ? 'active'
-          : order(p) < order(phase)
-            ? 'done'
-            : 'pending',
+    state: phase === 'done' ? 'done' : p === phase ? 'active' : order(p) < order(phase) ? 'done' : 'pending',
   }));
 
-  const blocker =
-    !vendor
-      ? 'Choose a vendor to continue.'
-      : lines.length === 0
-        ? 'Add at least one item.'
+  const blocker = !vendor
+    ? 'Choose a vendor to continue.'
+    : lines.length === 0
+      ? 'Add at least one item.'
+      : !warehouse
+        ? 'Choose a receiving warehouse.'
         : !expectedDate.trim()
           ? 'An expected delivery date is needed.'
-          : null;
+          : !/^\d{4}-\d{2}-\d{2}$/.test(expectedDate.trim())
+            ? 'Use YYYY-MM-DD for the expected delivery date.'
+            : expectedDate.trim() < orderDate
+              ? 'Expected delivery cannot be before the order date.'
+              : null;
 
   async function commit() {
-    if (blocker || !vendor) return;
+    if (blocker || !vendor || !warehouse) return;
 
     const thisAttempt = attempt ?? new Attempt('purchase-order.create');
     setAttempt(thisAttempt);
@@ -104,19 +117,25 @@ export function NewPurchaseOrderFlow({
     setError(null);
 
     try {
-      const reference = await onCommit(
-        { vendorId: vendor.id, lines, expectedDate: expectedDate.trim(), note: note.trim() || null },
-        thisAttempt,
+      const result = await onCommit(
+        {
+          vendorId: vendor.id,
+          warehouseId: warehouse.id,
+          buyerActorId: vendor.buyerActorId,
+          orderDate,
+          lines,
+          expectedDate: expectedDate.trim(),
+          note: note.trim() || null,
+        },
+        thisAttempt
       );
       thisAttempt.settle();
       setAttempt(null);
-      setCreated(reference);
+      setCreated(result);
       setPhase('done');
     } catch (e) {
       // The attempt is deliberately kept so a retry reuses the same key.
-      setError(
-        e instanceof Error ? e.message : 'The purchase order could not be sent. Try again.',
-      );
+      setError(e instanceof Error ? e.message : 'The purchase order could not be sent. Try again.');
     } finally {
       setCommitting(false);
     }
@@ -125,14 +144,15 @@ export function NewPurchaseOrderFlow({
   if (phase === 'done' && created) {
     return (
       <Confirmation
-        reference={created}
+        result={created}
         vendorName={vendor?.name ?? ''}
-        total={money(total)}
+        total={total}
         expectedDate={expectedDate}
-        onOpen={() => onOpenPurchaseOrder(created)}
+        onOpen={() => onOpenPurchaseOrder(created.id)}
         onAnother={() => {
           setPhase('vendor');
           setVendor(null);
+          setWarehouse(warehouses.length === 1 ? (warehouses[0] ?? null) : null);
           setLines([]);
           setExpectedDate('');
           setNote('');
@@ -163,18 +183,18 @@ export function NewPurchaseOrderFlow({
         )}
 
         {phase === 'items' && vendor && (
-          <ItemsStep
-            catalog={catalogFor(vendor.id)}
-            lines={lines}
-            onChange={setLines}
-          />
+          <ItemsStep catalog={catalogFor(vendor.id)} lines={lines} onChange={setLines} />
         )}
 
         {phase === 'review' && vendor && (
           <ReviewStep
             vendor={vendor}
+            warehouses={warehouses}
+            warehouse={warehouse}
+            onWarehouse={setWarehouse}
+            orderDate={orderDate}
             lines={lines}
-            total={money(total)}
+            total={total}
             expectedDate={expectedDate}
             onExpectedDate={setExpectedDate}
             note={note}
@@ -185,9 +205,7 @@ export function NewPurchaseOrderFlow({
         {error && (
           <View style={styles.error}>
             <Text style={styles.errorText}>{error}</Text>
-            <Text style={styles.errorHint}>
-              Retrying is safe — this order will not be sent twice.
-            </Text>
+            <Text style={styles.errorHint}>Retrying is safe — this order will not be created twice.</Text>
           </View>
         )}
       </ScrollView>
@@ -198,7 +216,7 @@ export function NewPurchaseOrderFlow({
             <Text style={styles.totalLabel}>
               {lines.length} {lines.length === 1 ? 'line' : 'lines'}
             </Text>
-            <Text style={styles.totalValue}>{money(total)}</Text>
+            <Text style={styles.totalValue}>{total}</Text>
           </View>
         )}
 
@@ -206,7 +224,7 @@ export function NewPurchaseOrderFlow({
 
         <View style={styles.actions}>
           <FoodlineButton
-            label={phase === 'review' ? 'Send purchase order' : 'Continue'}
+            label={phase === 'review' ? 'Submit purchase order' : 'Continue'}
             busy={committing}
             disabled={phase === 'review' ? blocker !== null : phase === 'items' && lines.length === 0}
             onPress={() => {
@@ -265,9 +283,7 @@ function VendorStep({
               <CardRow first={i === 0}>
                 <View style={styles.grow}>
                   <Text style={styles.rowTitle}>{v.name}</Text>
-                  <Text style={styles.rowMeta}>
-                    {v.terms} · lead time {v.leadTimeDays} {v.leadTimeDays === 1 ? 'day' : 'days'}
-                  </Text>
+                  <Text style={styles.rowMeta}>{v.currencyCode} vendor catalog</Text>
                 </View>
                 {v.id === selectedId && <StatusPill label="Chosen" tone="ok" />}
               </CardRow>
@@ -291,10 +307,10 @@ function ItemsStep({
   const [query, setQuery] = useState('');
   const shown = catalog.filter((c) => c.name.toLowerCase().includes(query.trim().toLowerCase()));
 
-  const qty = (id: string) => lines.find((l) => l.itemId === id)?.quantity ?? 0;
+  const qty = (id: string) => lines.find((l) => l.itemId === id)?.quantity ?? null;
 
-  function setQty(item: CatalogItem, next: number) {
-    if (next <= 0) {
+  function setQty(item: CatalogItem, next: string | null) {
+    if (next === null) {
       onChange(lines.filter((l) => l.itemId !== item.id));
       return;
     }
@@ -310,7 +326,7 @@ function ItemsStep({
               quantity: next,
               unitPrice: item.unitPrice,
             },
-          ],
+          ]
     );
   }
 
@@ -318,38 +334,59 @@ function ItemsStep({
     <>
       <SearchField value={query} onChange={setQuery} placeholder="Search this vendor's catalog" />
       <Card padded={false}>
-        {shown.map((item, i) => {
-          const q = qty(item.id);
-          return (
-            <CardRow key={item.id} first={i === 0}>
-              <View style={styles.grow}>
-                <Text style={styles.rowTitle}>{item.name}</Text>
-                <Text style={styles.rowMeta}>
-                  {item.packSize} · {money(item.unitPrice)} per {item.uom}
-                </Text>
-              </View>
+        {shown.length === 0 ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>No orderable vendor items match this search.</Text>
+          </View>
+        ) : (
+          shown.map((item, i) => {
+            const q = qty(item.id);
+            return (
+              <CardRow key={item.id} first={i === 0}>
+                <View style={styles.grow}>
+                  <Text style={styles.rowTitle}>{item.name}</Text>
+                  <Text style={styles.rowMeta}>
+                    {item.sku} · {item.packSize} · {exactLineTotal(item.unitPrice, '1')} per {item.uom}
+                  </Text>
+                  <Text style={styles.rowMeta}>
+                    Minimum {item.minimumOrderQuantity} · increments of {item.orderMultiple}
+                  </Text>
+                </View>
 
-              <View style={styles.stepper}>
-                <Pressable
-                  onPress={() => setQty(item, q - 1)}
-                  disabled={q === 0}
-                  accessibilityLabel={`Remove one ${item.name}`}
-                  style={[styles.stepBtn, q === 0 && styles.stepBtnOff]}
-                >
-                  <Text style={styles.stepGlyph}>−</Text>
-                </Pressable>
-                <Text style={styles.qty}>{q}</Text>
-                <Pressable
-                  onPress={() => setQty(item, q + 1)}
-                  accessibilityLabel={`Add one ${item.name}`}
-                  style={styles.stepBtn}
-                >
-                  <Text style={styles.stepGlyph}>+</Text>
-                </Pressable>
-              </View>
-            </CardRow>
-          );
-        })}
+                <View style={styles.stepper}>
+                  <Pressable
+                    onPress={() =>
+                      setQty(
+                        item,
+                        q
+                          ? adjustOrderQuantity(q, item.orderMultiple, -1, firstOrderableQuantity(item))
+                          : null
+                      )
+                    }
+                    disabled={q === null}
+                    accessibilityLabel={`Remove one order increment of ${item.name}`}
+                    style={[styles.stepBtn, q === null && styles.stepBtnOff]}
+                  >
+                    <Text style={styles.stepGlyph}>−</Text>
+                  </Pressable>
+                  <Text style={styles.qty}>{q ?? '0'}</Text>
+                  <Pressable
+                    onPress={() =>
+                      setQty(
+                        item,
+                        q ? adjustOrderQuantity(q, item.orderMultiple, 1) : firstOrderableQuantity(item)
+                      )
+                    }
+                    accessibilityLabel={`Add one order increment of ${item.name}`}
+                    style={styles.stepBtn}
+                  >
+                    <Text style={styles.stepGlyph}>+</Text>
+                  </Pressable>
+                </View>
+              </CardRow>
+            );
+          })
+        )}
       </Card>
     </>
   );
@@ -357,6 +394,10 @@ function ItemsStep({
 
 function ReviewStep({
   vendor,
+  warehouses,
+  warehouse,
+  onWarehouse,
+  orderDate,
   lines,
   total,
   expectedDate,
@@ -365,6 +406,10 @@ function ReviewStep({
   onNote,
 }: {
   vendor: VendorOption;
+  warehouses: WarehouseOption[];
+  warehouse: WarehouseOption | null;
+  onWarehouse: (warehouse: WarehouseOption) => void;
+  orderDate: string;
   lines: DraftLine[];
   total: string;
   expectedDate: string;
@@ -377,7 +422,7 @@ function ReviewStep({
       <Card>
         <Text style={styles.rowTitle}>{vendor.name}</Text>
         <Text style={styles.rowMeta}>
-          {vendor.terms} · lead time {vendor.leadTimeDays} days
+          Order date {orderDate} · {vendor.currencyCode}
         </Text>
       </Card>
 
@@ -388,7 +433,7 @@ function ReviewStep({
               {l.description}
             </Text>
             <Text style={styles.lineQty}>{l.quantity}</Text>
-            <Text style={styles.lineTotal}>{money(l.unitPrice * l.quantity)}</Text>
+            <Text style={styles.lineTotal}>{exactLineTotal(l.unitPrice, l.quantity)}</Text>
           </CardRow>
         ))}
         <CardRow>
@@ -398,11 +443,33 @@ function ReviewStep({
       </Card>
 
       <View>
+        <Text style={styles.label}>Receiving warehouse</Text>
+        <Card padded={false}>
+          {warehouses.map((option, index) => (
+            <Pressable
+              key={option.id}
+              onPress={() => onWarehouse(option)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: warehouse?.id === option.id }}
+            >
+              <CardRow first={index === 0}>
+                <View style={styles.grow}>
+                  <Text style={styles.rowTitle}>{option.name}</Text>
+                  <Text style={styles.rowMeta}>{option.code}</Text>
+                </View>
+                {warehouse?.id === option.id ? <StatusPill label="Chosen" tone="ok" /> : null}
+              </CardRow>
+            </Pressable>
+          ))}
+        </Card>
+      </View>
+
+      <View>
         <Text style={styles.label}>Expected delivery date</Text>
         <TextInput
           value={expectedDate}
           onChangeText={onExpectedDate}
-          placeholder="MM/DD/YYYY"
+          placeholder="YYYY-MM-DD"
           placeholderTextColor={colors.ink.disabled}
           style={styles.field}
           accessibilityLabel="Expected delivery date, required"
@@ -425,14 +492,14 @@ function ReviewStep({
 }
 
 function Confirmation({
-  reference,
+  result,
   vendorName,
   total,
   expectedDate,
   onOpen,
   onAnother,
 }: {
-  reference: string;
+  result: CreatedPurchaseOrder;
   vendorName: string;
   total: string;
   expectedDate: string;
@@ -445,8 +512,15 @@ function Confirmation({
         <Text style={styles.tickGlyph}>✓</Text>
       </View>
 
-      <Text style={styles.confirmTitle}>Purchase order sent</Text>
-      <Mono style={styles.confirmRef}>{reference}</Mono>
+      <Text style={styles.confirmTitle}>
+        {result.submissionStatus === 'submitted'
+          ? 'Purchase order submitted'
+          : 'Purchase order draft created'}
+      </Text>
+      <Mono style={styles.confirmRef}>{result.documentNumber}</Mono>
+      {result.submissionMessage ? (
+        <Text style={styles.confirmMessage}>{result.submissionMessage}</Text>
+      ) : null}
 
       <Card style={styles.confirmCard}>
         <View style={styles.confirmRow}>
@@ -464,12 +538,7 @@ function Confirmation({
       </Card>
 
       <FoodlineButton label="Open this purchase order" onPress={onOpen} style={styles.confirmBtn} />
-      <FoodlineButton
-        label="Create another"
-        variant="quiet"
-        onPress={onAnother}
-        style={styles.confirmBtn}
-      />
+      <FoodlineButton label="Create another" variant="quiet" onPress={onAnother} style={styles.confirmBtn} />
     </ScrollView>
   );
 }
@@ -505,10 +574,6 @@ function SearchField({
 const ORDER: Record<Exclude<Phase, 'done'>, number> = { vendor: 0, items: 1, review: 2 };
 function order(p: Phase): number {
   return p === 'done' ? 3 : ORDER[p];
-}
-
-function money(n: number): string {
-  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 }
 
 const styles = StyleSheet.create({
@@ -550,8 +615,8 @@ const styles = StyleSheet.create({
 
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   stepBtn: {
-    width: 34,
-    height: 34,
+    width: 44,
+    height: 44,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.hairline.DEFAULT,
@@ -625,6 +690,7 @@ const styles = StyleSheet.create({
   },
   tickGlyph: { fontSize: 30, color: colors.ok.DEFAULT, fontWeight: '700' },
   confirmTitle: { ...typeScale.titleSm, color: colors.ink.DEFAULT, marginTop: 4 },
+  confirmMessage: { ...typeScale.small, color: colors.ink.muted, textAlign: 'center' },
   confirmRef: { fontSize: 15 },
   confirmCard: { alignSelf: 'stretch', marginTop: 8 },
   confirmRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 },
