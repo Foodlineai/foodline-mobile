@@ -1,4 +1,6 @@
 import * as AuthSession from 'expo-auth-session';
+import * as Crypto from 'expo-crypto';
+import * as WebBrowser from 'expo-web-browser';
 
 import { env } from '@/lib/env';
 import { secureStorage } from '@/lib/secure-storage';
@@ -25,10 +27,12 @@ const discovery: AuthSession.DiscoveryDocument = {
   tokenEndpoint: `${env.workosAuthDomain}/user_management/authenticate`,
 };
 
-export const redirectUri = AuthSession.makeRedirectUri({
+export const nativeRedirectUri = AuthSession.makeRedirectUri({
   scheme: 'foodline',
   path: 'auth/callback',
 });
+
+const MOBILE_STATE_PREFIX = 'foodline-mobile:';
 
 let cached: StoredTokens | null = null;
 
@@ -55,17 +59,20 @@ async function load(): Promise<StoredTokens | null> {
 export async function signIn(): Promise<void> {
   const request = new AuthSession.AuthRequest({
     clientId: env.workosClientId,
-    redirectUri,
+    redirectUri: env.workosRedirectUri,
     scopes: ['openid', 'profile', 'email', 'offline_access'],
     usePKCE: true,
     responseType: AuthSession.ResponseType.Code,
+    state: `${MOBILE_STATE_PREFIX}${Crypto.randomUUID()}`,
     extraParams: {
       provider: 'authkit',
       screen_hint: 'sign-in',
     },
   });
 
-  const result = await request.promptAsync(discovery);
+  const authorizationUrl = await request.makeAuthUrlAsync(discovery);
+  const browserResult = await WebBrowser.openAuthSessionAsync(authorizationUrl, nativeRedirectUri);
+  const result = browserResult.type === 'success' ? request.parseReturnUrl(browserResult.url) : browserResult;
   if (result.type !== 'success' || !result.params.code) {
     throw new Error(result.type === 'cancel' ? 'Sign-in cancelled' : 'Sign-in failed');
   }
@@ -74,7 +81,7 @@ export async function signIn(): Promise<void> {
     {
       clientId: env.workosClientId,
       code: result.params.code,
-      redirectUri,
+      redirectUri: env.workosRedirectUri,
       extraParams: request.codeVerifier ? { code_verifier: request.codeVerifier } : undefined,
     },
     discovery

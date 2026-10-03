@@ -1,15 +1,15 @@
 import { Feather } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, Text, type AccessibilityState, type GestureResponderEvent } from 'react-native';
 
+import { FoodlineAiOrb } from '@/components/foodline-ai-orb';
 import { COLORS, type IconName } from '@/components/ui';
 import { useVoice } from '@/features/copilot/voice/VoiceProvider';
 
 /**
  * Home · My Work · AI · Activity · Search. The AI tab sits in the centre as a
- * raised Nova Indigo disc (Chris's 31 Aug ask: the AI present everywhere, not
+ * raised animated Foodline AI orb (Chris's 31 Aug ask: the AI present everywhere, not
  * only on the hub). It replaced "More"; the workspace directory is still a
  * route (`/more`) and is reached from the header's grid button and Home.
  * Tap opens the conversation; long-press toggles inline voice mode.
@@ -19,9 +19,6 @@ const HOME: TabDef = { name: 'index', title: 'Home', icon: 'home' };
 const MY_WORK: TabDef = { name: 'my-work', title: 'My Work', icon: 'clipboard' };
 const ACTIVITY: TabDef = { name: 'activity', title: 'Activity', icon: 'bell' };
 const SEARCH: TabDef = { name: 'search', title: 'Search', icon: 'search' };
-
-const NOVA = ['#5A63E9', '#2F3BD6'] as const;
-const NOVA_LIVE = ['#38BDF8', '#4953E4'] as const;
 
 type AiTabButtonProps = {
   onPress?: (e: GestureResponderEvent) => void;
@@ -37,7 +34,9 @@ function AiTabButton({ onPress, accessibilityState }: AiTabButtonProps) {
       onLongPress={voice.toggle}
       delayLongPress={380}
       accessibilityRole="button"
-      accessibilityLabel={voice.active ? 'AI Copilot, voice on. Long press to turn off' : 'AI Copilot. Long press for voice'}
+      accessibilityLabel={
+        voice.active ? 'Foodline AI, voice on. Long press to turn off' : 'Foodline AI. Long press for voice'
+      }
       accessibilityActions={[{ name: 'longpress', label: voice.active ? 'Turn voice off' : 'Turn voice on' }]}
       onAccessibilityAction={(e) => {
         if (e.nativeEvent.actionName === 'longpress') voice.toggle();
@@ -46,14 +45,7 @@ function AiTabButton({ onPress, accessibilityState }: AiTabButtonProps) {
       style={styles.aiSlot}
       testID="tab-ai"
     >
-      <LinearGradient
-        colors={voice.active ? NOVA_LIVE : NOVA}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.disc, focused && styles.discFocused, voice.active && styles.discLive]}
-      >
-        <Text style={styles.glyph}>✦</Text>
-      </LinearGradient>
+      <FoodlineAiOrb size={56} style={[styles.disc, focused && styles.discFocused, voice.active && styles.discLive]} />
       <Text style={[styles.aiLabel, (focused || voice.active) && { color: '#2F3BD6' }]}>{voice.active ? 'Voice' : 'AI'}</Text>
     </Pressable>
   );
@@ -111,6 +103,5 @@ const styles = StyleSheet.create({
   },
   discFocused: { shadowOpacity: 0.55 },
   discLive: { shadowColor: '#38BDF8', shadowOpacity: 0.9, shadowRadius: 18 },
-  glyph: { color: '#FFFFFF', fontSize: 24, lineHeight: 28 },
   aiLabel: { fontSize: 11, fontWeight: '600', color: COLORS.inkMuted, marginTop: 4 },
 });

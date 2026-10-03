@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import { FoodlineAiOrb } from '@/components/foodline-ai-orb';
 import { appRouteForHref } from './mappers';
 import type { PageContext } from './page-context';
 import type { InteractionState } from './useCopilot';
@@ -25,9 +26,9 @@ import type {
   TurnResult,
 } from './types';
 
-const NOVA = '#4953E4';
-const NOVA_TINT = '#E7E9FD';
-const NOVA_LINE = '#C7CBFA';
+const AI = '#4953E4';
+const AI_TINT = '#E7E9FD';
+const AI_LINE = '#C7CBFA';
 const INK = '#0B1020';
 const MUTED = '#475776';
 const SUBTLE = '#6B7894';
@@ -52,7 +53,7 @@ export type CopilotScreenProps = {
 };
 
 /**
- * Conversational Copilot. It answers, shows the records it found as tappable
+ * Conversational Foodline AI. It answers, shows the records it found as tappable
  * cards, and for anything that changes data it shows a review the ERP built
  * — the person confirms there; the model never commits. All prompts, tools
  * and policy live on the ERP; this renders what comes back.
@@ -78,8 +79,9 @@ export function CopilotScreen(props: CopilotScreenProps) {
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.header}>
+        <FoodlineAiOrb size={38} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Copilot</Text>
+          <Text style={styles.title}>Foodline AI</Text>
           <Text style={styles.context} numberOfLines={1}>
             Looking at: {page.title}
           </Text>
@@ -100,8 +102,8 @@ export function CopilotScreen(props: CopilotScreenProps) {
       >
         {messages.length === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.glyph}>✦</Text>
-            <Text style={styles.emptyTitle}>How can I help?</Text>
+            <FoodlineAiOrb size={92} />
+            <Text style={styles.emptyTitle}>How can Foodline AI help?</Text>
             <Text style={styles.emptyBody}>
               Ask about items, vendors, customers and orders. When something needs to change, I&apos;ll draft it and
               you review it before anything happens.
@@ -136,8 +138,8 @@ export function CopilotScreen(props: CopilotScreenProps) {
 
         {pending ? (
           <View style={styles.working} testID="copilot-working">
-            <ActivityIndicator size="small" color={NOVA} />
-            <Text style={styles.workingText}>Working on it…</Text>
+            <FoodlineAiOrb size={30} />
+            <Text style={styles.workingText}>Foodline AI is working…</Text>
           </View>
         ) : null}
       </ScrollView>
@@ -218,6 +220,10 @@ function AssistantTurn({
   return (
     <View style={styles.assistantRow}>
       <View style={styles.assistantBubble}>
+        <View style={styles.assistantIdentity}>
+          <FoodlineAiOrb size={22} />
+          <Text style={styles.assistantName}>Foodline AI</Text>
+        </View>
         <Text style={styles.assistantText}>{text}</Text>
         {result.executedActions ? <Text style={styles.meta}>This reply ran an action.</Text> : null}
         {result.toolNames.length > 0 ? <Text style={styles.meta}>Looked at: {result.toolNames.join(', ')}</Text> : null}
@@ -533,16 +539,15 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 10, gap: 12 },
   title: { fontSize: 22, fontWeight: '700', color: INK },
   context: { fontSize: 12, color: SUBTLE, marginTop: 2 },
-  link: { fontSize: 14, fontWeight: '700', color: NOVA },
+  link: { fontSize: 14, fontWeight: '700', color: AI },
 
   thread: { paddingHorizontal: 16, paddingBottom: 18, gap: 12, flexGrow: 1 },
   empty: { alignItems: 'flex-start', gap: 8, paddingTop: 24, paddingHorizontal: 4 },
-  glyph: { fontSize: 34, color: NOVA },
   emptyTitle: { fontSize: 24, fontWeight: '700', color: INK },
   emptyBody: { fontSize: 14, lineHeight: 20, color: MUTED },
 
   userRow: { alignItems: 'flex-end' },
-  userBubble: { maxWidth: '84%', backgroundColor: NOVA, borderRadius: 18, borderBottomRightRadius: 5, paddingHorizontal: 14, paddingVertical: 10 },
+  userBubble: { maxWidth: '84%', backgroundColor: AI, borderRadius: 18, borderBottomRightRadius: 5, paddingHorizontal: 14, paddingVertical: 10 },
   userText: { color: '#fff', fontSize: 15, lineHeight: 21 },
 
   assistantRow: { alignItems: 'flex-start', gap: 8, maxWidth: '100%' },
@@ -558,6 +563,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   assistantText: { color: INK, fontSize: 15, lineHeight: 22 },
+  assistantIdentity: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  assistantName: { color: AI, fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
   meta: { fontSize: 11, color: SUBTLE },
   notice: { fontSize: 11, color: '#A2680E', fontWeight: '600' },
 
@@ -568,9 +575,9 @@ const styles = StyleSheet.create({
   errorText: { fontSize: 13, color: '#C62F27', lineHeight: 18 },
 
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { borderWidth: 1, borderColor: NOVA_LINE, backgroundColor: '#fff', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
-  chipOn: { backgroundColor: NOVA_TINT, borderColor: NOVA },
-  chipText: { fontSize: 13, color: NOVA, fontWeight: '600' },
+  chip: { borderWidth: 1, borderColor: AI_LINE, backgroundColor: '#fff', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
+  chipOn: { backgroundColor: AI_TINT, borderColor: AI },
+  chipText: { fontSize: 13, color: AI, fontWeight: '600' },
   chipTextOn: { color: '#1A40DA' },
 
   card: { alignSelf: 'stretch', backgroundColor: '#fff', borderWidth: 1, borderColor: LINE, borderRadius: 16, overflow: 'hidden' },
@@ -582,13 +589,13 @@ const styles = StyleSheet.create({
   itemLabel: { fontSize: 14, fontWeight: '700', color: INK },
   itemDesc: { fontSize: 12, color: MUTED, marginTop: 1 },
   itemMeta: { fontSize: 12, color: SUBTLE, marginTop: 1 },
-  badge: { backgroundColor: NOVA_TINT, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  badge: { backgroundColor: AI_TINT, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
   badgeText: { fontSize: 10, fontWeight: '700', color: '#1A40DA' },
   chevron: { fontSize: 20, color: '#96A8CE' },
 
-  panel: { alignSelf: 'stretch', backgroundColor: '#fff', borderWidth: 1, borderColor: NOVA_LINE, borderRadius: 16, padding: 14, gap: 8 },
-  panelReview: { borderColor: NOVA, backgroundColor: '#F5F6FF' },
-  reviewKicker: { fontSize: 11, fontWeight: '700', color: NOVA, textTransform: 'uppercase', letterSpacing: 0.6 },
+  panel: { alignSelf: 'stretch', backgroundColor: '#fff', borderWidth: 1, borderColor: AI_LINE, borderRadius: 16, padding: 14, gap: 8 },
+  panelReview: { borderColor: AI, backgroundColor: '#F5F6FF' },
+  reviewKicker: { fontSize: 11, fontWeight: '700', color: AI, textTransform: 'uppercase', letterSpacing: 0.6 },
   panelTitle: { fontSize: 16, fontWeight: '700', color: INK },
   panelBody: { fontSize: 13, lineHeight: 19, color: MUTED },
   summary: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: LINE },
@@ -602,7 +609,7 @@ const styles = StyleSheet.create({
   hint: { fontSize: 11, color: SUBTLE },
 
   actionsRow: { flexDirection: 'row', gap: 10, justifyContent: 'flex-end', marginTop: 4 },
-  primary: { backgroundColor: NOVA, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 11, minWidth: 110, alignItems: 'center' },
+  primary: { backgroundColor: AI, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 11, minWidth: 110, alignItems: 'center' },
   primaryOff: { opacity: 0.45 },
   primaryText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   secondary: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, borderWidth: 1, borderColor: LINE, backgroundColor: '#fff' },
@@ -633,7 +640,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: INK,
   },
-  send: { height: 44, width: 44, borderRadius: 22, backgroundColor: NOVA, alignItems: 'center', justifyContent: 'center' },
+  send: { height: 44, width: 44, borderRadius: 22, backgroundColor: AI, alignItems: 'center', justifyContent: 'center' },
   sendOff: { opacity: 0.35 },
   sendText: { color: '#fff', fontSize: 20, fontWeight: '700', lineHeight: 22 },
 });

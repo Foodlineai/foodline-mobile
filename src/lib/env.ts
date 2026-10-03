@@ -1,12 +1,17 @@
 import Constants from 'expo-constants';
 
 function required(name: string, value: string | undefined): string {
-  if (!value) {
+  const normalized = value?.trim();
+  if (
+    !normalized ||
+    /your[-_ ]?project|placeholder|example\.com/i.test(normalized) ||
+    /^YOUR[-_]/i.test(normalized)
+  ) {
     throw new Error(
-      `Missing ${name}. Copy .env.example to .env.local and fill it in, then restart with \`npx expo start --clear\`.`
+      `Missing or placeholder ${name}. Copy .env.example to .env.local, add the live value, then restart with \`npx expo start --clear\`.`
     );
   }
-  return value;
+  return normalized;
 }
 
 /**
@@ -27,6 +32,12 @@ export const env = {
   /** AuthKit domain, e.g. https://auth.foodlineai.com or the WorkOS-hosted one. */
   get workosAuthDomain() {
     return process.env.EXPO_PUBLIC_WORKOS_AUTH_DOMAIN ?? 'https://api.workos.com';
+  },
+  /** WorkOS-registered HTTPS callback. The ERP forwards mobile states to the app scheme. */
+  get workosRedirectUri() {
+    return (
+      process.env.EXPO_PUBLIC_WORKOS_REDIRECT_URI ?? 'https://erp.foodlineai.com/api/auth/callback'
+    ).replace(/\/+$/, '');
   },
   /**
    * The ERP that hosts the governed Copilot (`POST /api/mobile/copilot`).

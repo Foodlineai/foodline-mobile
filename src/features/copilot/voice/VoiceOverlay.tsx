@@ -2,6 +2,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { FoodlineAiOrb } from '@/components/foodline-ai-orb';
 import { useVoice } from './VoiceProvider';
 
 const useNativeDriver = Platform.OS !== 'web';
@@ -19,8 +20,8 @@ function useReduceMotion() {
 
 /**
  * While voice mode is on: a gradient glow rises from the dock so it's obvious
- * the Copilot is live, and one line carries everything it says (no logo, no
- * transcript, no text box). The glow shows only while a session is actually
+ * Foodline AI is live, and one line carries everything it says (no transcript
+ * and no text box). The glow shows only while a session is actually
  * running — never for "starting" failures, because nothing is listening.
  */
 export function VoiceOverlay() {
@@ -72,7 +73,7 @@ export function VoiceOverlay() {
 
       <View pointerEvents="box-none" style={styles.barWrap}>
         <View style={styles.bar} accessibilityLiveRegion="polite" testID="voice-bar">
-          <View style={[styles.dot, status === 'unavailable' && styles.dotOff]} />
+          {status === 'unavailable' ? <View style={[styles.dot, styles.dotOff]} /> : <FoodlineAiOrb size={26} />}
           <Text style={styles.line} numberOfLines={2}>
             {line}
           </Text>
