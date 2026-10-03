@@ -54,10 +54,8 @@ jobs:
 
       - run: npm ci
 
-      - name: Remove development launcher from release build
-        run: |
-          npm remove --no-save --ignore-scripts expo-dev-client
-          test ! -d node_modules/expo-dev-launcher
+      - name: Exclude development modules from release autolinking
+        run: node scripts/configure-release-autolinking.mjs
 
       - name: Verify live configuration
         run: |
