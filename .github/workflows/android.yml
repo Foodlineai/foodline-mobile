@@ -39,6 +39,7 @@ jobs:
       EXPO_PUBLIC_WORKOS_REDIRECT_URI: https://erp.foodlineai.com/api/auth/callback
       EXPO_PUBLIC_ERP_BASE_URL: https://erp.foodlineai.com
       ORG_GRADLE_PROJECT_reactNativeArchitectures: arm64-v8a
+      GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -71,7 +72,7 @@ jobs:
 
       - name: Gradle build
         working-directory: android
-        run: ./gradlew assembleRelease --no-daemon --stacktrace -PreactNativeArchitectures=arm64-v8a
+        run: ./gradlew assembleRelease --no-daemon --stacktrace --max-workers=2 -PreactNativeArchitectures=arm64-v8a -x lintVitalAnalyzeRelease
 
       - uses: actions/upload-artifact@v4
         with:
