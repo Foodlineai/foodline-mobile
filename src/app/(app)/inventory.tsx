@@ -46,6 +46,7 @@ export default function Inventory() {
             activeFilterId={filterId}
             onFilterChange={setFilterId}
             onOpenItem={(item) => router.push(`/item/${item.id}` as never)}
+            onOpenCycleCounts={() => router.push('/inventory/counts' as never)}
           />
         )}
       </SafeAreaView>

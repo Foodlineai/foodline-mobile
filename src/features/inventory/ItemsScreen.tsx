@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Card } from '../../components/primitives';
+import { Button } from '../../components/ui';
 import { colors, radius, space, type as typeScale } from '../../theme/tokens';
 import type { ItemsFilter, StockItem } from './types';
 
@@ -26,6 +27,7 @@ export type ItemsScreenProps = {
   activeFilterId: string;
   onFilterChange: (id: string) => void;
   onOpenItem: (item: StockItem) => void;
+  onOpenCycleCounts: () => void;
   /** Null while loading; an empty array genuinely means no matches. */
   loading?: boolean;
 };
@@ -36,6 +38,7 @@ export function ItemsScreen({
   activeFilterId,
   onFilterChange,
   onOpenItem,
+  onOpenCycleCounts,
   loading = false,
 }: ItemsScreenProps) {
   const [query, setQuery] = useState('');
@@ -54,6 +57,7 @@ export function ItemsScreen({
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
+        <Button label="Cycle counts" icon="check-square" variant="ghost" onPress={onOpenCycleCounts} />
         <View style={styles.search}>
           <Text style={styles.searchGlyph}>⌕</Text>
           <TextInput
