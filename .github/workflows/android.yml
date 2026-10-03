@@ -80,6 +80,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: foodline-live-v0.5.0-${{ github.sha }}
+          name: foodline-live-v0.5.1-${{ github.sha }}
           path: android/app/build/outputs/apk/release/*.apk
           retention-days: 14
